@@ -4,12 +4,11 @@ import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.function.Consumer;
-import java.util.stream.IntStream;
 
 public class Generator { 
   /*private*/ static final ContinuationScope SCOPE = new ContinuationScope() { /*empty*/ };
 
-  public static <T> Iterator<T> iterator(Consumer<Consumer<T>> consumer) {
+  public static <T> Iterator<T> iterator(Consumer<Consumer<? super T>> consumer) {
     Objects.requireNonNull(consumer);
     return new Iterator<>() {
       private final Continuation continuation = new Continuation(SCOPE, () -> {
