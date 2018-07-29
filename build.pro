@@ -29,7 +29,7 @@ compiler.
 packager.
   modules("fr.umlv.loom@1.0/fr.umlv.loom.Main")   
 
-run(resolver, modulefixer, compiler, tester, packager, runner /*, perfer */)
+run(resolver, modulefixer, compiler, tester, packager /*, perfer */)
 
 pro.arguments().forEach(plugin -> run(plugin))   // run command line defined plugins
 
