@@ -43,4 +43,4 @@ The go-routine of golang are fibers.
 - Task,
   a simple async/await mechanism like in JavaScript, C# or Kotlin using a fiber. Note that unlike these languages, fibers are managed by the VM not by the compiler.
 - YetAnotherExecutors,
-  yet another executor using fibers.
+  an executor using fibers that unlike the Fiber API returns futures.
