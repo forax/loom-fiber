@@ -1,5 +1,5 @@
 # loom-fiber
-continuation & fiber examples using the OpenJDK project Loom prototype
+Continuation & Fiber examples using the OpenJDK project Loom prototype
 
 ## How to build
 
