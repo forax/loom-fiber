@@ -1,5 +1,5 @@
 # loom-fiber
-fiber examples using the OpenJDK project Loom prototype
+continuation & fiber examples using the OpenJDK project Loom prototype
 
 ## How to build
 
@@ -15,6 +15,17 @@ If you want to re-run the build, you can either re-run pro_wrapper or call direc
 ```
   ./pro/bin/pro
 ```
+
+## What is a continuation and what is a fiber
+
+A Continuation is a stack of function calls that can be stopped at some point (with yield) and restarted afterward (with run).
+
+A Fiber is a continuation that runs on a thread pool (java.util.concurrent.Executor) so unlike a continuation, a fiber doesn't run on the same thread
+as the code that execute it. Unlike an usual executor, when a fiber do a blocking call (on IO, lock, condition, sleep, etc) it doesn't block the underlying thread,
+the fiber is stopped and another one can be scheduled on the same thread. When the result of the blocking call arrived, the fiber is restarted once the same thread
+that starts the fiber is free to be used.
+
+The go-routine of golang are fibers.
 
 ## Examples using the project Loom
 
