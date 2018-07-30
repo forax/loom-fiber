@@ -20,15 +20,15 @@ If you want to re-run the build, you can either re-run pro_wrapper or call direc
 
 ### Continuations
 
-- Generators
-  Implementation of an Iterator and a Stream using a continuation
-- EventContinuation
-  allow to send values back and forth between a code and a continuation
+- Generators,
+  an Iterator and a Stream using a continuation
+- EventContinuation,
+  allows to send values back and forth between a code and a continuation
 
 
 ### Fibers
 
-- Task
-  A simple async/await mechanism like in JavaScript, C# or Kotlin using a fiber
-- YetAnotherExecutors
-  Implements yet another executor using fibers
+- Task,
+  a simple async/await mechanism like in JavaScript, C# or Kotlin using a fiber so done by the VM not by the compiler
+- YetAnotherExecutors,
+  yet another executor using fibers
