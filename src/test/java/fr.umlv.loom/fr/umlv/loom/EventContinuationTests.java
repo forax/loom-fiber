@@ -19,8 +19,9 @@ class EventContinuationTests {
   void robot() {
     EventContinuation<Command, Direction> robot = new EventContinuation<>((yielder, parameter) -> {
       var direction = Direction.NORTH;
+      var command = parameter;
       for(;;) {
-        switch(parameter) {
+        switch(command) {
         case LEFT:
           direction = turn(direction, -1);
           break;
@@ -31,7 +32,7 @@ class EventContinuationTests {
         default:
           return direction;
         }
-        parameter = yielder.yield(direction);
+        command = yielder.yield(direction);
       }
     });
     
