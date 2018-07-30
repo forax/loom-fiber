@@ -4,7 +4,7 @@ Continuation & Fiber examples using the OpenJDK project Loom prototype
 ## How to build
 
 First you need to get pro, the simplest solution is to use the pro_wrapper,
-so grab a version of (http://jdk.java.net/)[jdk 11 or 12] and type
+so grab a version of [jdk 11 or 12](http://jdk.java.net/) and type
 ```
   export PRO_SPECIAL_BUILD='early-access-loom'
   /path/to/jdk/bin/java pro_wrapper
