@@ -23,8 +23,8 @@ A Continuation is a stack of function calls that can be stopped at some point (w
 
 A Fiber is a continuation that runs on a thread pool (java.util.concurrent.Executor) so unlike a continuation, a fiber doesn't run on the same thread
 as the code that execute it. Unlike an usual executor, when a fiber do a blocking call (on IO, lock, condition, sleep, etc) it doesn't block the underlying thread,
-the fiber is stopped and another one can be scheduled on the same thread. When the result of the blocking call arrived, the fiber is restarted once the same thread
-that starts the fiber is free to be used.
+the fiber is stopped and another one can be scheduled on the same thread. When the result of the blocking call arrived, the fiber is restarted on an available thread
+of the thread pool (not necessary the one that as run the fiber previously).
 
 The go-routine of golang are fibers.
 
