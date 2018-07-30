@@ -3,7 +3,6 @@ package fr.umlv.loom;
 import java.util.Objects;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
 
 public class YetAnotherExecutors {
@@ -24,11 +23,11 @@ public class YetAnotherExecutors {
         return result;
       }
       @Override
-      public T get(long timeout, TimeUnit unit) throws TimeoutException {
+      public T get(long timeout, TimeUnit unit) throws IllegalStateException {
         fiber.awaitNanos(unit.toNanos(timeout));
         T result = this.result;
         if (result == null) {
-          throw new TimeoutException();
+          throw new IllegalStateException("timeout");
         }
         return result;
       }
