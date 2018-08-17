@@ -19,14 +19,13 @@ If you want to re-run the build, you can either re-run pro_wrapper or call direc
 
 ## What is a continuation and what is a fiber
 
-A Continuation is a stack of function calls that can be stopped at some point (with yield) and restarted afterward (with run).
+A Continuation is a stack of function calls that can be stopped and store in the heap at some point (with yield) and restarted afterward (with run).
+A continuation has no scheduler, so you have to write your own.
 
-A Fiber is a continuation that runs on a thread pool (java.util.concurrent.Executor) so unlike a continuation, a fiber doesn't run on the same thread
-as the code that execute it. Unlike an usual executor, when a fiber do a blocking call (on IO, lock, condition, sleep, etc) it doesn't block the underlying thread,
-the fiber is stopped and another one can be scheduled on the same thread. When the result of the blocking call arrived, the fiber is restarted on an available thread
-of the thread pool (not necessary the one that as run the fiber previously).
-
-The go-routine of golang are fibers.
+A Fiber is a continuation that interacts well with the Java API. Fibers are scheduled on a thread pool (java.util.concurrent.Executor)
+so the execution of the code of a fiber can be carried by multiple worker threads (The go-routine of golang are fibers.). 
+Blocking calls (IO, java.util.concurrent.lock, condition, sleep, etc) supports fibers so instead of blocking the fiber yield and
+will be restarted when the data will be available.
 
 ## Examples using the project Loom
 
@@ -36,11 +35,11 @@ The go-routine of golang are fibers.
   an Iterator and a Stream using a continuation.
 - EventContinuation,
   allows to send values back and forth between a code and a continuation.
-
+- Server
+  a small HTTP Server that create one continuation by request and uses a Selector to schedule the continuations. 
 
 ### Fibers
 
 - Task,
   a simple async/await mechanism like in JavaScript, C# or Kotlin using a fiber. Note that unlike these languages, fibers are managed by the VM not by the compiler.
-- YetAnotherExecutors,
-  an executor using fibers that unlike the Fiber API returns futures.
+

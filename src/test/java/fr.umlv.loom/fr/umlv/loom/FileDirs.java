@@ -32,7 +32,7 @@ public class FileDirs {
           .map(path -> async(() -> lineCountFile(path)))
           .collect(toList())
           .stream()
-          .mapToLong(Task::get)
+          .mapToLong(Task::await)
           .sum();
     } catch(UncheckedIOException e) {
       throw e.getCause();

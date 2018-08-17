@@ -9,15 +9,14 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 public class Generators { 
-  /*private*/ static final ContinuationScope SCOPE = new ContinuationScope() { /*empty*/ };
+  /*private*/ static final ContinuationScope SCOPE = new ContinuationScope("generators");
 
   public static <T> Iterator<T> iterator(Consumer<Consumer<? super T>> consumer) {
     Objects.requireNonNull(consumer);
     return new Iterator<>() {
       private final Continuation continuation = new Continuation(SCOPE, () -> {
         consumer.accept(value -> {
-          Objects.requireNonNull(value);
-          element = value;
+          element = Objects.requireNonNull(value);
           Continuation.yield(SCOPE);
         });
       });
