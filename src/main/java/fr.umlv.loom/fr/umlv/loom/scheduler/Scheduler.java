@@ -1,7 +1,8 @@
-package fr.umlv.loom;
+package fr.umlv.loom.scheduler;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Objects;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.IntStream;
 
@@ -14,7 +15,7 @@ public class Scheduler {
   }
   
   Continuation currentContinuation() {
-    Continuation currentContinuation = Continuation.getCurrentContinuation(scope);
+    var currentContinuation = Continuation.getCurrentContinuation(scope);
     if (currentContinuation == null) {
       throw new IllegalStateException("no current continuation");
     }
@@ -22,25 +23,25 @@ public class Scheduler {
   }
   
   public void execute(Runnable runnable) {
-    Continuation continuation = new Continuation(scope, runnable);
+    var continuation = new Continuation(scope, runnable);
     schedulable.add(continuation);
     
-    Continuation currentContinuation = Continuation.getCurrentContinuation(scope);
+    var currentContinuation = Continuation.getCurrentContinuation(scope);
     if (currentContinuation == null) {
       loop();
     }
   }
   
-  public void yield() {
+  public void pause() {
     Continuation currentContinuation = currentContinuation();
     schedulable.add(currentContinuation);
     Continuation.yield(scope);
   }
   
   void loop() {
-    ThreadLocalRandom random = ThreadLocalRandom.current();
+    var random = ThreadLocalRandom.current();
     while(!schedulable.isEmpty()) {
-      Continuation continuation = schedulable.remove(random.nextInt(schedulable.size()));
+      var continuation = schedulable.remove(random.nextInt(schedulable.size()));
       //Continuation continuation = schedulable.remove(0);
       continuation.run();
     }
@@ -50,19 +51,19 @@ public class Scheduler {
     private final Scheduler scheduler;
     private final ArrayDeque<Continuation> waitQueue = new ArrayDeque<>();
     
-    public Condition(Scheduler scheduler) {
+    Condition(Scheduler scheduler) {
       this.scheduler = scheduler;
     }
     
     public void await() {
-      Continuation currentContinuation = scheduler.currentContinuation();
+      var currentContinuation = scheduler.currentContinuation();
       waitQueue.offer(currentContinuation);
       Continuation.yield(scheduler.scope);
     }
     
     public void signal() {
       scheduler.currentContinuation();  // check that this a thread has a continuation
-      Continuation continuation = waitQueue.poll();
+      var continuation = waitQueue.poll();
       if (continuation == null) {
         return;
       }
@@ -83,6 +84,7 @@ public class Scheduler {
     private final Condition isFull;
     
     public WorkQueue(int capacity, Scheduler scheduler) {
+      Objects.requireNonNull(scheduler);
       this.capacity = capacity;
       this.queue = new ArrayDeque<>(capacity);
       this.isEmpty = new Condition(scheduler);
@@ -107,15 +109,15 @@ public class Scheduler {
   }
   
   public static void main(String[] args) {
-    Scheduler scheduler = new Scheduler();
-    WorkQueue<Integer> workQueue = new WorkQueue<>(4, scheduler);
+    var scheduler = new Scheduler();
+    var workQueue = new WorkQueue<Integer>(4, scheduler);
     scheduler.execute(() -> {
       IntStream.range(0, 10).forEach(id -> {
         scheduler.execute(() -> {
           for(;;) {
             System.out.println(id + ": produce " + id);
             workQueue.put(id);
-            scheduler.yield();
+            scheduler.pause();
           }
         });
       });
@@ -123,7 +125,7 @@ public class Scheduler {
         scheduler.execute(() -> {
           for(;;) {
             System.out.println(id + ": consume " + workQueue.take());
-            scheduler.yield();
+            scheduler.pause();
           }
         });
       });
