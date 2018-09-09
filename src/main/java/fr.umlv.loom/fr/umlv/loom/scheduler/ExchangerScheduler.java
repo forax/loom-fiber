@@ -3,11 +3,11 @@ package fr.umlv.loom.scheduler;
 import java.util.ArrayDeque;
 import java.util.Objects;
 
-public class SimpleScheduler {
+public class ExchangerScheduler {
   final ContinuationScope scope;
   final ArrayDeque<Continuation> schedulable = new ArrayDeque<>();
   
-  public SimpleScheduler() {
+  public ExchangerScheduler() {
     scope = new ContinuationScope("scheduler-" + Integer.toHexString(System.identityHashCode(this)));
   }
   
@@ -37,11 +37,11 @@ public class SimpleScheduler {
   }
   
   static class Exchanger<V> {
-    private final SimpleScheduler scheduler;
+    private final ExchangerScheduler scheduler;
     private V value;
     private Continuation continuation;
     
-    public Exchanger(SimpleScheduler scheduler) {
+    public Exchanger(ExchangerScheduler scheduler) {
       this.scheduler = Objects.requireNonNull(scheduler);
     }
 
@@ -65,7 +65,7 @@ public class SimpleScheduler {
   }
   
   public static void main(String[] args) {
-    var scheduler = new SimpleScheduler();
+    var scheduler = new ExchangerScheduler();
     var exchanger = new Exchanger<String>(scheduler);
     scheduler.execute(() -> {
       System.out.println("cont1: " + exchanger.exchange("hello"));

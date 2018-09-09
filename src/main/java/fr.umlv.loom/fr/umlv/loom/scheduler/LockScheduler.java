@@ -5,11 +5,11 @@ import java.util.Objects;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.IntStream;
 
-public class RandomScheduler {
+public class LockScheduler {
   final ContinuationScope scope;
   final ArrayList<Continuation> schedulable = new ArrayList<>();
   
-  public RandomScheduler() {
+  public LockScheduler() {
     scope = new ContinuationScope("scheduler-" + Integer.toHexString(System.identityHashCode(this)));
   }
   
@@ -48,12 +48,12 @@ public class RandomScheduler {
   }
   
   static class Lock {
-    private final RandomScheduler scheduler;
+    private final LockScheduler scheduler;
     private final ArrayList<Continuation> waitQueue = new ArrayList<>();
     private int depth;
     private Continuation owner;
     
-    public Lock(RandomScheduler scheduler) {
+    public Lock(LockScheduler scheduler) {
       this.scheduler = Objects.requireNonNull(scheduler);
     }
 
@@ -92,7 +92,7 @@ public class RandomScheduler {
   }
   
   public static void main(String[] args) {
-    var scheduler = new RandomScheduler();
+    var scheduler = new LockScheduler();
     var lock = new Lock(scheduler);
     var shared = new Object() {
       int x;

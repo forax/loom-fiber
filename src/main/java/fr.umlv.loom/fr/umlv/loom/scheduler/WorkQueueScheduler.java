@@ -6,11 +6,11 @@ import java.util.Objects;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.IntStream;
 
-public class Scheduler {
+public class WorkQueueScheduler {
   final ContinuationScope scope;
   final ArrayList<Continuation> schedulable = new ArrayList<>();
   
-  public Scheduler() {
+  public WorkQueueScheduler() {
     scope = new ContinuationScope("scheduler-" + Integer.toHexString(System.identityHashCode(this)));
   }
   
@@ -48,10 +48,10 @@ public class Scheduler {
   }
   
   static class Condition {
-    private final Scheduler scheduler;
+    private final WorkQueueScheduler scheduler;
     private final ArrayDeque<Continuation> waitQueue = new ArrayDeque<>();
     
-    Condition(Scheduler scheduler) {
+    Condition(WorkQueueScheduler scheduler) {
       this.scheduler = scheduler;
     }
     
@@ -83,7 +83,7 @@ public class Scheduler {
     private final Condition isEmpty;
     private final Condition isFull;
     
-    public WorkQueue(int capacity, Scheduler scheduler) {
+    public WorkQueue(int capacity, WorkQueueScheduler scheduler) {
       Objects.requireNonNull(scheduler);
       this.capacity = capacity;
       this.queue = new ArrayDeque<>(capacity);
@@ -109,7 +109,7 @@ public class Scheduler {
   }
   
   public static void main(String[] args) {
-    var scheduler = new Scheduler();
+    var scheduler = new WorkQueueScheduler();
     var workQueue = new WorkQueue<Integer>(4, scheduler);
     scheduler.execute(() -> {
       IntStream.range(0, 10).forEach(id -> {
