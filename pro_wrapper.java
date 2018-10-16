@@ -20,6 +20,7 @@ import java.io.InputStreamReader;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileVisitResult;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.SimpleFileVisitor;
@@ -164,6 +165,33 @@ class pro_wrapper {
     }
   }
   
+  public interface PathConsumer {
+    void accept(Path path) throws IOException;
+  }
+  
+  private static void retry(Path resource, int times, PathConsumer consumer) throws IOException {
+    if (times <= 0) {
+      throw new IllegalArgumentException("times <= 0");
+    }
+    IOException exception = null;
+    var count = times;
+    do {
+      try {
+        consumer.accept(resource);
+        return;
+      } catch(IOException e) {
+        if (exception == null) {
+          exception = new IOException();
+        }
+        exception.addSuppressed(e);
+        
+        // cleanup
+        Files.deleteIfExists(resource);
+      }
+    } while(--count != 0);
+    throw exception;
+  }
+  
   private static int installAndRun(String[] args) throws IOException {
     var release = lastestReleaseVersion().orElseThrow(() -> new IOException("latest release not found on Github"));
     var specialBuild = specialBuild().map(build -> '-' + build).orElse("");
@@ -171,7 +199,7 @@ class pro_wrapper {
     
     var cachePath = Paths.get(userHome(), ".pro", "cache", release, filename);
     if (!exists(cachePath)) {
-      download(release, filename, cachePath);
+      retry(cachePath, 3, _cachedPath -> download(release, filename, _cachedPath));
     }
     
     var releaseTxt = Paths.get("pro", "pro-release.txt");
