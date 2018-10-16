@@ -10,5 +10,7 @@ public class Example2 {
     
     System.out.println("continuation " + continuation);
     continuation.run();
+    
+    System.out.println(Continuation.getCurrentContinuation(scope));
   }
 }

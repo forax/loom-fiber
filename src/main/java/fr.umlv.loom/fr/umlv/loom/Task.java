@@ -2,6 +2,7 @@ package fr.umlv.loom;
 
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
+import java.time.Duration;
 import java.util.Objects;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
@@ -14,7 +15,7 @@ import java.util.function.Supplier;
 
 public interface Task<T> extends Future<T> {
   T await() throws CancellationException;
-  T awaitNanos(long nanos) throws CancellationException, TimeoutException;
+  T await(Duration duration) throws CancellationException, TimeoutException;
   
   final class TaskImpl<T> implements Task<T> {
     private static final Object CANCELLED = new Object();
@@ -72,8 +73,8 @@ public interface Task<T> extends Future<T> {
     
     @Override
     @SuppressWarnings("unchecked")
-    public T awaitNanos(long nanos) throws TimeoutException {
-      fiber.awaitNanos(nanos);
+    public T await(Duration duration) throws TimeoutException {
+      fiber.await(duration);
       if (setResultIfNull(CANCELLED)) {
         throw new TimeoutException();
       }
@@ -104,7 +105,7 @@ public interface Task<T> extends Future<T> {
     @Override
     @SuppressWarnings("unchecked")
     public T get(long timeout, TimeUnit unit) throws TimeoutException, ExecutionException {
-      fiber.awaitNanos(unit.toNanos(timeout));
+      fiber.await(Duration.of(timeout, unit.toChronoUnit()));
       if (setResultIfNull(CANCELLED)) {
         throw new TimeoutException();
       }
@@ -135,10 +136,10 @@ public interface Task<T> extends Future<T> {
   }
   
   public static <T> Task<T> async(Supplier<? extends T> supplier) {
-    return new TaskImpl<>(Fiber::execute, supplier);
+    return new TaskImpl<>(runnable -> new Fiber(runnable).schedule(), supplier);
   }
   
   public static <T> Task<T> async(Executor executor, Supplier<? extends T> supplier) {
-    return new TaskImpl<>(runnable -> Fiber.execute(executor, runnable), supplier);
+    return new TaskImpl<>(runnable -> new Fiber(executor, runnable).schedule(), supplier);
   }
 }

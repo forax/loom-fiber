@@ -45,7 +45,7 @@ class TaskTests {
     assertFalse(task.isCancelled());
     assertTrue(task.isDone());
     assertThrows(FooException.class, () -> task.await());
-    assertThrows(FooException.class, () -> task.awaitNanos(0));
+    assertThrows(FooException.class, () -> task.await(Duration.ofNanos(0)));
     assertThrows(ExecutionException.class, () -> task.get());
     assertThrows(ExecutionException.class, () -> task.get(0, TimeUnit.MILLISECONDS));
   }

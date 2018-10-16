@@ -7,7 +7,9 @@ public class Example1 {
       System.out.println("1");
       Continuation.yield(scope);
       System.out.println("2");
-      Continuation.yield(scope);
+      synchronized(scope) {
+        Continuation.yield(scope);
+      }
       System.out.println("3");
     });
     
