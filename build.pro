@@ -33,4 +33,4 @@ run(resolver, modulefixer, compiler, tester, packager /*, perfer */)
 
 pro.arguments().forEach(plugin -> run(plugin))   // run command line defined plugins
 
-/exit
+/exit errorCode()
