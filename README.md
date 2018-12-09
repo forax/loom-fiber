@@ -7,7 +7,7 @@ First you need to get pro, the simplest solution is to use the pro_wrapper,
 so grab a version of [jdk 11 or 12](http://jdk.java.net/) and type
 ```
   export PRO_SPECIAL_BUILD='early-access-loom'
-  /path/to/jdk/bin/java pro_wrapper
+  /path/to/jdk/bin/java pro_wrapper.java
 ```
 
 It should install a version of pro compatible with loom in a local directory named 'pro' and run the build
