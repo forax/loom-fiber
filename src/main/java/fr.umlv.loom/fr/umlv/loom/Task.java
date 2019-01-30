@@ -36,10 +36,10 @@ public interface Task<T> extends Future<T> {
       }
     }
     
-    private final Fiber<Void> fiber;
+    private final Fiber<?> fiber;
     private volatile Object result;  // null -> CANCELLED or null -> value | $$$(exception)
     
-    TaskImpl(Function<Runnable, Fiber<Void>> execution, Supplier<? extends T> supplier) {
+    TaskImpl(Function<Runnable, Fiber<?>> execution, Supplier<? extends T> supplier) {
       fiber = execution.apply(() -> {
         Object result;
         try {
