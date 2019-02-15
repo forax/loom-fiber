@@ -19,7 +19,7 @@ public class BarrierScheduler {
     }
   }
   
-  void loop() {
+  private void loop() {
     while(!schedulable.isEmpty()) {
       Continuation continuation = schedulable.poll();
       continuation.run();
