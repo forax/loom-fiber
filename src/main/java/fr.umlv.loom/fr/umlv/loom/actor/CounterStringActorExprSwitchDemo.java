@@ -14,7 +14,7 @@ public class CounterStringActorExprSwitchDemo {
       @Override
       public void run() {
         while (true) {
-          receive(message ->
+          receive(message -> {
             switch((String)message) {
             case "increment" ->
               counter++;
@@ -22,7 +22,7 @@ public class CounterStringActorExprSwitchDemo {
               System.out.println("Value is " + counter);
               exit();
             }
-          });
+          }});
         }
       }  
     });
