@@ -1,5 +1,5 @@
 package fr.umlv.loom.actor;
-/*
+
 import static fr.umlv.loom.actor.Actor.exit;
 import static fr.umlv.loom.actor.Actor.receive;
 import static java.util.stream.IntStream.range;
@@ -34,4 +34,3 @@ public class CounterStringActorExprSwitchDemo {
     // Output: Value is 100000
   }
 }
-*/
