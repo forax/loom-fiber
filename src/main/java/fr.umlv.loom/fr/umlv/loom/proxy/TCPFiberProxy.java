@@ -40,6 +40,7 @@ public class TCPFiberProxy {
     };
   }
   
+  @SuppressWarnings("resource")
   public static void main(String[] args) throws IOException {
     var server = ServerSocketChannel.open();
     server.bind(new InetSocketAddress(7777));

@@ -37,7 +37,8 @@ public class TCPClassicalSocketFiberProxy {
       }
     };
   }
-  
+
+  @SuppressWarnings("resource")
   public static void main(String[] args) throws IOException {
     var server = new ServerSocket();
     server.bind(new InetSocketAddress(7777));

@@ -1,7 +1,6 @@
 package fr.umlv.loom.proxy;
 
 import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
@@ -49,7 +48,7 @@ public class TCPContinuationProxy {
           
           buffer.clear();
         }
-      } catch (IOException e) {
+      } catch (@SuppressWarnings("unused") IOException e) {
         //throw new UncheckedIOException(e);
       }
     };
@@ -92,6 +91,7 @@ public class TCPContinuationProxy {
     }
   }
   
+  @SuppressWarnings("resource")
   public static void main(String[] args) throws IOException {
     var server = ServerSocketChannel.open();
     server.bind(new InetSocketAddress(7777));
