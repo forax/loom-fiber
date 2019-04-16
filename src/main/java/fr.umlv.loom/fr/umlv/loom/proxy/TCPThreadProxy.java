@@ -45,7 +45,7 @@ public class TCPThreadProxy {
     System.out.println("server bound to " + server.getLocalAddress());
     
     var remote = SocketChannel.open();
-    remote.connect(new InetSocketAddress(InetAddress.getByName("gaspard.univ-mlv.fr"), 7));
+    remote.connect(new InetSocketAddress(InetAddress.getByName(Host.NAME), 7));
     //remote.configureBlocking(false);
     
     System.out.println("accepting ...");
