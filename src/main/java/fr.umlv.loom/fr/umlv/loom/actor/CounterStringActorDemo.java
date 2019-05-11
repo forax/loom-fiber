@@ -28,9 +28,9 @@ public class CounterStringActorDemo {
     });
     actor.start();
 
-    range(0, 100_000).forEach(__ -> actor.send("increment"));
+    range(0, 10_000).forEach(__ -> actor.send("increment"));
 
     actor.send("value");
-    // Output: Value is 100000
+    // Output: Value is 10000
   }
 }

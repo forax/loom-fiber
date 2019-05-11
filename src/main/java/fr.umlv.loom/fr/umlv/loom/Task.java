@@ -14,7 +14,7 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 public interface Task<T> extends Future<T> {
-  T await() throws CancellationException;
+  T join() throws CancellationException;
   T await(Duration duration) throws CancellationException, TimeoutException;
   
   final class TaskImpl<T> implements Task<T> {
@@ -59,7 +59,7 @@ public interface Task<T> extends Future<T> {
     
     @Override
     @SuppressWarnings("unchecked")
-    public T await() {
+    public T join() {
       fiber.awaitTermination();
       Object result = this.result;
       if (result == CANCELLED) {

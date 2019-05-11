@@ -28,7 +28,7 @@ public class LockExample {
           break;
         }
         waitQueue.add(continuation);
-        Scheduler.yield();
+        scheduler.yield();
       }
     }
 
@@ -56,27 +56,15 @@ public class LockExample {
       int x;
       int y;
     };
-    scheduler.execute(() -> {
-      IntStream.range(0, 2).forEach(id -> {
-        scheduler.execute(() -> {
-          for (;;) {
-            lock.lock();
-            try {
-              shared.x = id;
-              scheduler.pause();
-              shared.y = id;
-            } finally {
-              lock.unlock();
-            }
-            scheduler.pause();
-          }
-        });
-      });
-      scheduler.execute(() -> {
+
+    IntStream.range(0, 2).forEach(id -> {
+      scheduler.schedule(() -> {
         for (;;) {
           lock.lock();
           try {
-            System.out.println(shared.x + " " + shared.y);
+            shared.x = id;
+            scheduler.pause();
+            shared.y = id;
           } finally {
             lock.unlock();
           }
@@ -84,5 +72,18 @@ public class LockExample {
         }
       });
     });
+    scheduler.schedule(() -> {
+      for (;;) {
+        lock.lock();
+        try {
+          System.out.println(shared.x + " " + shared.y);
+        } finally {
+          lock.unlock();
+        }
+        scheduler.pause();
+      }
+    });
+
+    scheduler.loop();
   }
 }

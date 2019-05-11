@@ -18,7 +18,7 @@ public class ExchangerExample {
       if (this.value == null) {
         this.value = value;
         this.continuation = continuation;
-        Scheduler.yield();
+        scheduler.yield();
         var result = this.value;
         this.value = null;
         return result;
@@ -34,11 +34,12 @@ public class ExchangerExample {
   public static void main(String[] args) {
     var scheduler = new FifoScheduler();
     var exchanger = new Exchanger<String>(scheduler);
-    scheduler.execute(() -> {
+    scheduler.schedule(() -> {
       System.out.println("cont1: " + exchanger.exchange("hello"));
     });
-    scheduler.execute(() -> {
+    scheduler.schedule(() -> {
       System.out.println("cont2: " + exchanger.exchange("hi"));
     });
+    scheduler.loop();
   }
 }

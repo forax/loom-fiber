@@ -20,7 +20,7 @@ class TaskTests {
   @Test
   void taskAsyncAwait() {
     var task = async(() -> 2);
-    assertEquals(2, (int)task.await());
+    assertEquals(2, (int)task.join());
     assertFalse(task.isCancelled());
     assertTrue(task.isDone());
   }
@@ -30,8 +30,8 @@ class TaskTests {
     assertTimeout(Duration.ofMillis(1_500), () -> {
       var task = async(() -> sleep(1_000));
       var task2 = async(() -> sleep(1_000));
-      task.await();
-      task2.await();
+      task.join();
+      task2.join();
     });
   }
 
@@ -41,10 +41,10 @@ class TaskTests {
       private static final long serialVersionUID = 1L;
     }
     var task = async(() -> { throw new FooException(); });
-    assertThrows(FooException.class, () -> task.await());
+    assertThrows(FooException.class, () -> task.join());
     assertFalse(task.isCancelled());
     assertTrue(task.isDone());
-    assertThrows(FooException.class, () -> task.await());
+    assertThrows(FooException.class, () -> task.join());
     assertThrows(FooException.class, () -> task.await(Duration.ofNanos(0)));
     assertThrows(ExecutionException.class, () -> task.get());
     assertThrows(ExecutionException.class, () -> task.get(0, TimeUnit.MILLISECONDS));
@@ -56,8 +56,8 @@ class TaskTests {
     assertTrue(task.cancel(false));
     assertTrue(task.isCancelled());
     assertTrue(task.isDone());
-    assertThrows(CancellationException.class, () -> task.await());
-    assertThrows(CancellationException.class, () -> task.await());
+    assertThrows(CancellationException.class, () -> task.join());
+    assertThrows(CancellationException.class, () -> task.join());
   }
   
   @Test
@@ -67,7 +67,7 @@ class TaskTests {
     assertTrue(task.isCancelled());
     assertTrue(task.isDone());
     assertThrows(CancellationException.class, () -> task.get(10, TimeUnit.MILLISECONDS));
-    assertThrows(CancellationException.class, () -> task.await());
+    assertThrows(CancellationException.class, () -> task.join());
     assertThrows(CancellationException.class, () -> task.get());
   }
   

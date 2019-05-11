@@ -8,12 +8,10 @@ public class FifoScheduler implements Scheduler {
   @Override
   public void register(Continuation continuation) {
     schedulable.add(continuation);
-    if (!Scheduler.hasCurrentContinuation()) {
-      loop();
-    }
   }
   
-  private void loop() {
+  @Override
+  public void loop() {
     while(!schedulable.isEmpty()) {
       var continuation = schedulable.poll();
       continuation.run();

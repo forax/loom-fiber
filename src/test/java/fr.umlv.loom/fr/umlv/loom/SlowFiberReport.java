@@ -6,10 +6,10 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
 public class SlowFiberReport {
-  private static final boolean LOGGING_ENABLED = true;
+  private static final boolean LOGGING_ENABLED = false;
   private static final int THREAD_COUNT = 1;
   private static final int WORKER_COUNT = 50;
-  private static final int MESSAGE_PASSING_COUNT = /*1_000_000*/ 10;
+  private static final int MESSAGE_PASSING_COUNT = 1_000_000;
 
   private static class Worker implements Runnable {
     private final ReentrantLock lock = new ReentrantLock();

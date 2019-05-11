@@ -17,7 +17,7 @@ public class WorkQueueExample {
     public void await() {
       var currentContinuation = Scheduler.currentContinuation();
       waitQueue.offer(currentContinuation);
-      Scheduler.yield();
+      scheduler.yield();
     }
     
     public void signal() {
@@ -70,24 +70,25 @@ public class WorkQueueExample {
   public static void main(String[] args) {
     var scheduler = new RandomScheduler();
     var workQueue = new WorkQueue<Integer>(4, scheduler);
-    scheduler.execute(() -> {
-      range(0, 10).forEach(id -> {
-        scheduler.execute(() -> {
-          for(;;) {
-            System.out.println(id + ": produce " + id);
-            workQueue.put(id);
-            scheduler.pause();
-          }
-        });
-      });
-      range(0, 10).forEach(id -> {
-        scheduler.execute(() -> {
-          for(;;) {
-            System.out.println(id + ": consume " + workQueue.take());
-            scheduler.pause();
-          }
-        });
+
+    range(0, 10).forEach(id -> {
+      scheduler.schedule(() -> {
+        for(;;) {
+          System.out.println(id + ": produce " + id);
+          workQueue.put(id);
+          scheduler.pause();
+        }
       });
     });
+    range(0, 10).forEach(id -> {
+      scheduler.schedule(() -> {
+        for(;;) {
+          System.out.println(id + ": consume " + workQueue.take());
+          scheduler.pause();
+        }
+      });
+    });
+
+    scheduler.loop();
   }
 }

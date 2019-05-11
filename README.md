@@ -6,11 +6,10 @@ Continuation & Fiber examples using the OpenJDK project Loom prototype
 First you need to get pro, the simplest solution is to use the pro_wrapper,
 so grab a version of [jdk 11 or 12](http://jdk.java.net/) and type
 ```
-  export PRO_SPECIAL_BUILD='early-access-loom'
-  /path/to/jdk/bin/java pro_wrapper.java
+  /path/to/jdk11/bin/java pro_wrapper.java
 ```
 
-It should install a version of pro compatible with loom in a local directory named 'pro' and run the build
+This should install a version of pro compatible with loom in a local directory named 'pro' and run the build
 
 If you want to re-run the build, you can either re-run pro_wrapper or call directly pro like this
 ```

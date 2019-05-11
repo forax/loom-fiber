@@ -26,7 +26,7 @@ public class BarrierExample {
         waitQueue.forEach(scheduler::register);
         waitQueue.clear();
       }
-      Scheduler.yield();
+      scheduler.yield();
     }
   }
   
@@ -34,11 +34,12 @@ public class BarrierExample {
     var scheduler = new FifoScheduler();
     var barrier = new Barrier(5, scheduler);
     IntStream.range(0, 5).forEach(id -> {
-      scheduler.execute(() -> {
+      scheduler.schedule(() -> {
         System.out.println("wait " + id);
         barrier.await();
         System.out.println("released " + id);
       });
     });
+    scheduler.loop();
   }
 }
