@@ -5,6 +5,7 @@ import java.lang.invoke.VarHandle;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Future;
@@ -60,7 +61,11 @@ public interface Task<T> extends Future<T> {
     @Override
     @SuppressWarnings("unchecked")
     public T join() {
-      fiber.awaitTermination();
+      try {
+				fiber.join();
+			} catch (InterruptedException e) {
+				throw new CompletionException(e);
+			}
       Object result = this.result;
       if (result == CANCELLED) {
         throw new CancellationException();
@@ -74,7 +79,11 @@ public interface Task<T> extends Future<T> {
     @Override
     @SuppressWarnings("unchecked")
     public T await(Duration duration) throws TimeoutException {
-      fiber.awaitTermination(duration);
+    	try {
+        fiber.awaitTermination(duration);
+    	} catch(InterruptedException e) {
+    		throw new CompletionException(e);
+    	}
       if (setResultIfNull(CANCELLED)) {
         throw new TimeoutException();
       }
@@ -90,8 +99,8 @@ public interface Task<T> extends Future<T> {
     
     @Override
     @SuppressWarnings("unchecked")
-    public T get() throws CancellationException, ExecutionException {
-      fiber.awaitTermination();
+    public T get() throws CancellationException, ExecutionException, InterruptedException {
+      fiber.join();
       Object result = this.result;
       if (result == CANCELLED) {
         throw new CancellationException();
@@ -104,7 +113,7 @@ public interface Task<T> extends Future<T> {
     
     @Override
     @SuppressWarnings("unchecked")
-    public T get(long timeout, TimeUnit unit) throws TimeoutException, ExecutionException {
+    public T get(long timeout, TimeUnit unit) throws TimeoutException, ExecutionException, InterruptedException {
       fiber.awaitTermination(Duration.of(timeout, unit.toChronoUnit()));
       if (setResultIfNull(CANCELLED)) {
         throw new TimeoutException();
@@ -136,10 +145,10 @@ public interface Task<T> extends Future<T> {
   }
   
   public static <T> Task<T> async(Supplier<? extends T> supplier) {
-    return new TaskImpl<>(runnable -> Fiber.schedule(runnable), supplier);
+    return new TaskImpl<>(runnable -> FiberScope.background().schedule(runnable), supplier);
   }
   
   public static <T> Task<T> async(Executor executor, Supplier<? extends T> supplier) {
-    return new TaskImpl<>(runnable -> Fiber.schedule(executor, runnable), supplier);
+    return new TaskImpl<>(runnable -> FiberScope.background().schedule(executor, runnable), supplier);
   }
 }

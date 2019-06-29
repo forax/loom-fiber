@@ -56,7 +56,7 @@ public class TCPFiberProxy {
     
     var executor = Executors.newSingleThreadExecutor();
     //var executor = ForkJoinPool.commonPool();
-    Fiber.schedule(executor, runnable(client, remote));
-    Fiber.schedule(executor, runnable(remote, client));
+    FiberScope.background().schedule(executor, runnable(client, remote));
+    FiberScope.background().schedule(executor, runnable(remote, client));
   }
 }

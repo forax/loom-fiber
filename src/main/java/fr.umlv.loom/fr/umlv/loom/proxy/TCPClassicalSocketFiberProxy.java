@@ -2,6 +2,7 @@ package fr.umlv.loom.proxy;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.lang.FiberScope.Option;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
@@ -54,7 +55,7 @@ public class TCPClassicalSocketFiberProxy {
     
     var executor = Executors.newSingleThreadExecutor();
     //var executor = ForkJoinPool.commonPool();
-    Fiber.schedule(executor, runnable(client, remote));
-    Fiber.schedule(executor, runnable(remote, client));
+    FiberScope.background().schedule(executor, runnable(client, remote));
+    FiberScope.background().schedule(executor, runnable(remote, client));
   }
 }

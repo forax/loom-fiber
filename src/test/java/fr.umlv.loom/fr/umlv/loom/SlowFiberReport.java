@@ -135,7 +135,7 @@ public class SlowFiberReport {
     return sequences;
   }
 
-  private static int[] runFibers() {
+  private static int[] runFibers() throws InterruptedException {
     log("creating executor service (THREAD_COUNT=%d)", THREAD_COUNT);
     var executorService = Executors.newFixedThreadPool(THREAD_COUNT);
 
@@ -154,7 +154,7 @@ public class SlowFiberReport {
     log("starting fibers");
     var fibers = new Fiber<?>[WORKER_COUNT];
     for (var workerIndex = 0; workerIndex < WORKER_COUNT; workerIndex++) {
-      fibers[workerIndex] = Fiber.schedule(executorService, workers[workerIndex]);
+      fibers[workerIndex] = FiberScope.background().schedule(executorService, workers[workerIndex]);
     }
 
     log("initiating the ring (MESSAGE_PASSING_COUNT=%d)", MESSAGE_PASSING_COUNT);
@@ -163,7 +163,7 @@ public class SlowFiberReport {
     log("waiting for workers to complete");
     for (var workerIndex = 0; workerIndex < WORKER_COUNT; workerIndex++) {
       var fiber = fibers[workerIndex];
-      fiber.awaitTermination();
+      fiber.join();
     }
 
     log("shutting down the executor service");
