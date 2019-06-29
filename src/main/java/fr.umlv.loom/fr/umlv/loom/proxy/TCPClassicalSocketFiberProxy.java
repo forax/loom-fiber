@@ -2,7 +2,6 @@ package fr.umlv.loom.proxy;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.lang.FiberScope.Option;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
