@@ -2,7 +2,7 @@
 <classpath>
 	<classpathentry excluding="module-info.java" kind="src" path="src/main/java/fr.umlv.loom"/>
 	<classpathentry excluding="module-info.java" kind="src" path="src/test/java/fr.umlv.loom"/>
-	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/jdk-13-loom">
+	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/jdk-14-loom">
 		<attributes>
 			<attribute name="module" value="true"/>
 		</attributes>

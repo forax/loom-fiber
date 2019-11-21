@@ -152,9 +152,11 @@ public class SlowFiberReport {
     }
     
     log("starting fibers");
-    var fibers = new Fiber<?>[WORKER_COUNT];
+    var fibers = new Thread[WORKER_COUNT];
     for (var workerIndex = 0; workerIndex < WORKER_COUNT; workerIndex++) {
-      fibers[workerIndex] = FiberScope.background().schedule(executorService, workers[workerIndex]);
+      var thread = Thread.builder().virtual().scheduler(executorService).task(workers[workerIndex]).build();
+      thread.start();
+      fibers[workerIndex] = thread;
     }
 
     log("initiating the ring (MESSAGE_PASSING_COUNT=%d)", MESSAGE_PASSING_COUNT);

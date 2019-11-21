@@ -13,14 +13,14 @@ public class TCPClassicalSocketFiberProxy {
     return () -> {
       var buffer = new byte[8192];
       
-      System.out.println("start " + Fiber.current().orElseThrow());
+      System.out.println("start " + Thread.currentThread());
       try(socket1;
           socket2;
           var input1 = socket1.getInputStream();
           var output2 = socket2.getOutputStream();) {
         for(;;) {
           int read = input1.read(buffer);
-          System.out.println("read " + read + " from " + Fiber.current().orElseThrow());
+          System.out.println("read " + read + " from " + Thread.currentThread());
           if (read == -1) {
             input1.close();
             output2.close();
@@ -30,10 +30,10 @@ public class TCPClassicalSocketFiberProxy {
           }
 
           output2.write(buffer, 0, read);
-          System.out.println("write from " + Fiber.current().orElseThrow());
+          System.out.println("write from " + Thread.currentThread());
         }
       } catch (IOException e) {
-        throw new UncheckedIOException(e);
+        //throw new UncheckedIOException(e);
       }
     };
   }
@@ -54,7 +54,7 @@ public class TCPClassicalSocketFiberProxy {
     
     var executor = Executors.newSingleThreadExecutor();
     //var executor = ForkJoinPool.commonPool();
-    FiberScope.background().schedule(executor, runnable(client, remote));
-    FiberScope.background().schedule(executor, runnable(remote, client));
+    Thread.builder().virtual().scheduler(executor).task(runnable(client, remote)).start();
+    Thread.builder().virtual().scheduler(executor).task(runnable(remote, client)).start();
   }
 }

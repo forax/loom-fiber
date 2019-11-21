@@ -9,9 +9,9 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Future;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.function.Function;
 import java.util.function.Supplier;
 
 public interface Task<T> extends Future<T> {
@@ -37,11 +37,11 @@ public interface Task<T> extends Future<T> {
       }
     }
     
-    private final Fiber<?> fiber;
+    private final Thread virtualThread;
     private volatile Object result;  // null -> CANCELLED or null -> value | $$$(exception)
     
-    TaskImpl(Function<Runnable, Fiber<?>> execution, Supplier<? extends T> supplier) {
-      fiber = execution.apply(() -> {
+    TaskImpl(ThreadFactory factory, Supplier<? extends T> supplier) {
+      virtualThread = factory.newThread(() -> {
         Object result;
         try {
           result = supplier.get();
@@ -62,7 +62,7 @@ public interface Task<T> extends Future<T> {
     @SuppressWarnings("unchecked")
     public T join() {
       try {
-				fiber.join();
+        virtualThread.join();
 			} catch (InterruptedException e) {
 				throw new CompletionException(e);
 			}
@@ -80,7 +80,7 @@ public interface Task<T> extends Future<T> {
     @SuppressWarnings("unchecked")
     public T await(Duration duration) throws TimeoutException {
     	try {
-        fiber.awaitTermination(duration);
+    	  virtualThread.join(duration);
     	} catch(InterruptedException e) {
     		throw new CompletionException(e);
     	}
@@ -100,7 +100,7 @@ public interface Task<T> extends Future<T> {
     @Override
     @SuppressWarnings("unchecked")
     public T get() throws CancellationException, ExecutionException, InterruptedException {
-      fiber.join();
+      virtualThread.join();
       Object result = this.result;
       if (result == CANCELLED) {
         throw new CancellationException();
@@ -114,7 +114,7 @@ public interface Task<T> extends Future<T> {
     @Override
     @SuppressWarnings("unchecked")
     public T get(long timeout, TimeUnit unit) throws TimeoutException, ExecutionException, InterruptedException {
-      fiber.awaitTermination(Duration.of(timeout, unit.toChronoUnit()));
+      virtualThread.join(Duration.of(timeout, unit.toChronoUnit()));
       if (setResultIfNull(CANCELLED)) {
         throw new TimeoutException();
       }
@@ -145,10 +145,16 @@ public interface Task<T> extends Future<T> {
   }
   
   public static <T> Task<T> async(Supplier<? extends T> supplier) {
-    return new TaskImpl<>(runnable -> FiberScope.background().schedule(runnable), supplier);
+    return async0(runnable -> Thread.newThread(Thread.VIRTUAL, runnable), supplier);
   }
   
   public static <T> Task<T> async(Executor executor, Supplier<? extends T> supplier) {
-    return new TaskImpl<>(runnable -> FiberScope.background().schedule(executor, runnable), supplier);
+    return async0(runnable -> Thread.builder().virtual().scheduler(executor).task(runnable).build(), supplier);
+  }
+  
+  private static <T> Task<T> async0(ThreadFactory factory, Supplier<? extends T> supplier) {
+    var task = new TaskImpl<T>(factory, supplier);
+    task.virtualThread.start();
+    return task;
   }
 }

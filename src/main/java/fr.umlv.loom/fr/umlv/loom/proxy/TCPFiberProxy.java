@@ -14,11 +14,11 @@ public class TCPFiberProxy {
     return () -> {
       var buffer = ByteBuffer.allocate(8192);
       
-      System.out.println("start " + Fiber.current().orElseThrow());
+      System.out.println("start " + Thread.currentThread());
       try(socket1; socket2) {
         for(;;) {
           int read = socket1.read(buffer);
-          System.out.println("read " + read + " from " + Fiber.current().orElseThrow());
+          System.out.println("read " + read + " from " + Thread.currentThread());
           if (read == -1) {
             socket1.close();
             socket2.close();
@@ -28,14 +28,14 @@ public class TCPFiberProxy {
 
           do {
             socket2.write(buffer);
-            System.out.println("write from " + Fiber.current().orElseThrow());
+            System.out.println("write from " + Thread.currentThread());
             
           } while(buffer.hasRemaining());
           
           buffer.clear();
         }
       } catch (IOException e) {
-        throw new UncheckedIOException(e);
+        //throw new UncheckedIOException(e);
       }
     };
   }
@@ -56,7 +56,7 @@ public class TCPFiberProxy {
     
     var executor = Executors.newSingleThreadExecutor();
     //var executor = ForkJoinPool.commonPool();
-    FiberScope.background().schedule(executor, runnable(client, remote));
-    FiberScope.background().schedule(executor, runnable(remote, client));
+    Thread.builder().virtual().scheduler(executor).task(runnable(client, remote)).start();
+    Thread.builder().virtual().scheduler(executor).task(runnable(remote, client)).start();
   }
 }
