@@ -149,7 +149,7 @@ public interface Task<T> extends Future<T> {
   }
   
   public static <T> Task<T> async(Executor executor, Supplier<? extends T> supplier) {
-    return async0(runnable -> Thread.builder().virtual().scheduler(executor).task(runnable).build(), supplier);
+    return async0(runnable -> Thread.builder().virtual(executor).task(runnable).build(), supplier);
   }
   
   private static <T> Task<T> async0(ThreadFactory factory, Supplier<? extends T> supplier) {

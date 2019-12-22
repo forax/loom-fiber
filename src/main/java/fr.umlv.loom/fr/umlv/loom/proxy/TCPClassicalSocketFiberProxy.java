@@ -54,7 +54,7 @@ public class TCPClassicalSocketFiberProxy {
     
     var executor = Executors.newSingleThreadExecutor();
     //var executor = ForkJoinPool.commonPool();
-    Thread.builder().virtual().scheduler(executor).task(runnable(client, remote)).start();
-    Thread.builder().virtual().scheduler(executor).task(runnable(remote, client)).start();
+    Thread.builder().virtual(executor).task(runnable(client, remote)).start();
+    Thread.builder().virtual(executor).task(runnable(remote, client)).start();
   }
 }
