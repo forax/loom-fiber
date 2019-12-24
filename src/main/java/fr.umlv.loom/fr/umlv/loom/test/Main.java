@@ -2,6 +2,7 @@ package fr.umlv.loom.test;
 
 import static fr.umlv.loom.test.JayTest.*;
 
+// ~/jdk/jdk-14-loom/bin/java --enable-preview --module-path target/main/artifact --module fr.umlv.loom/fr.umlv.loom.test.Main
 public class Main {
   public static void main(String[] args) {
     // typesafe API loosely based on JavaScript library Jest

@@ -12,7 +12,7 @@ public class JayTest {
   private static class TesterContinuation extends Continuation {
     private static final ContinuationScope SCOPE = new ContinuationScope("JayTest");
     
-    private AssertionError error;
+    private final ArrayList<AssertionError> errors = new ArrayList<>();
     
     private TesterContinuation(Runnable target) {
       super(SCOPE, target);
@@ -20,19 +20,6 @@ public class JayTest {
     
     static TesterContinuation current() {
       return (TesterContinuation) Continuation.getCurrentContinuation(SCOPE);
-    }
-
-    static void yield(AssertionError error) {
-      var current = current();
-      current.error = error;
-      Continuation.yield(SCOPE);
-    }
-    
-    AssertionError call() {
-      run();
-      var error = this.error;
-      this.error = null;
-      return error;
     }
   }
   
@@ -71,31 +58,25 @@ public class JayTest {
     Objects.requireNonNull(description);
     Objects.requireNonNull(executable);
 
-    var errors = new ArrayList<AssertionError>();
     var continuation = new TesterContinuation(() ->  {
       try {
         executable.execute();
       } catch(Throwable e) {
-        errors.add(new TestError("unexpected exception", e));
+        TesterContinuation.current().errors.add(new TestError("unexpected exception", e));
       }
     });
     
-    for(;;) {
-      var error = continuation.call();
-      if (error == null) {
-        break;
-      }
-      errors.add(error);
-    }
+    continuation.run();
     
-    if (errors.isEmpty()) {
+    if (continuation.errors.isEmpty()) {
       return;
     }
     var error = new TestError(description);
-    errors.forEach(error::addSuppressed);
+    continuation.errors.forEach(error::addSuppressed);
     
-    if (TesterContinuation.current() != null) {
-      TesterContinuation.yield(error);
+    var current = TesterContinuation.current();
+    if (current != null) {
+      current.errors.add(error);
     } else {
       throw error;
     }
@@ -141,7 +122,7 @@ public class JayTest {
       Objects.requireNonNull(predicate);
       var result = eval(predicate);
       if (!result.valid) {
-        TesterContinuation.yield(new TestError(result.text + " " + message));
+        TesterContinuation.current().errors.add(new TestError(result.text + " " + message));
       }
     }
     
