@@ -21,7 +21,7 @@ resolver.
     );
 
 compiler.
-  sourceRelease(14).
+  sourceRelease(15).
   enablePreview(true).
   rawArguments(
     "--processor-module-path", "deps"   // enable JMH annotation processor
