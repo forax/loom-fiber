@@ -11,7 +11,6 @@ import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.function.Predicate;
-
 import org.junit.jupiter.api.Test;
 
 @SuppressWarnings("static-method")
@@ -24,11 +23,12 @@ public class FileDirs {
     }
   }
   
-  private static long lineCount(Path directory, Predicate<? super Path> filter) throws IOException {
+  private static long lineCount(Path directory, Predicate<? super Path> filter, int limit) throws IOException {
     try(var files = walk(directory)) {
       return files
           .filter(not(Files::isDirectory))
           .filter(filter)
+          .limit(limit)
           .map(path -> async(() -> lineCountFile(path)))
           .collect(toList())
           .stream()
@@ -40,8 +40,8 @@ public class FileDirs {
   }
   
   @Test
-  void testLineCount() throws IOException {
-    var lineCount = lineCount(Path.of("."), path -> path.toString().endsWith(".java"));
+  public void testLineCount() throws IOException {
+    var lineCount = lineCount(Path.of("."), path -> path.toString().endsWith(".java"), 5);
     System.out.println("lineCount " + lineCount);
   }
 }

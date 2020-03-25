@@ -12,13 +12,12 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-
 import org.junit.jupiter.api.Test;
 
 @SuppressWarnings("static-method")
-class TaskTests {
+public class TaskTests {
   @Test
-  void taskAsyncAwait() {
+  public void taskAsyncAwait() {
     var task = async(() -> 2);
     assertEquals(2, (int)task.join());
     assertFalse(task.isCancelled());
@@ -26,17 +25,17 @@ class TaskTests {
   }
   
   @Test
-  void taskAsyncAwaitParallel() {
-    assertTimeout(Duration.ofMillis(1_500), () -> {
-      var task = async(() -> sleep(1_000));
-      var task2 = async(() -> sleep(1_000));
+  public void taskAsyncAwaitParallel() {
+    assertTimeout(Duration.ofMillis(250), () -> {
+      var task = async(() -> sleep(200));
+      var task2 = async(() -> sleep(200));
       task.join();
       task2.join();
     });
   }
 
   @Test
-  void taskException() {
+  public void taskException() {
     class FooException extends RuntimeException {
       private static final long serialVersionUID = 1L;
     }
@@ -51,8 +50,8 @@ class TaskTests {
   }
   
   @Test
-  void taskCancelled() {
-    var task = async(() -> sleep(1_000));
+  public void taskCancelled() {
+    var task = async(() -> sleep(100));
     assertTrue(task.cancel(false));
     assertTrue(task.isCancelled());
     assertTrue(task.isDone());
@@ -61,8 +60,8 @@ class TaskTests {
   }
   
   @Test
-  void taskTimeouted() {
-    var task = async(() -> sleep(1_000));
+  public void taskTimeouted() {
+    var task = async(() -> sleep(100));
     assertThrows(TimeoutException.class, () -> task.get(10, TimeUnit.MILLISECONDS));
     assertTrue(task.isCancelled());
     assertTrue(task.isDone());

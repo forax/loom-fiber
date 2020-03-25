@@ -5,7 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import org.junit.jupiter.api.Test;
 
 @SuppressWarnings("static-method")
-class EventContinuationTests {
+public class EventContinuationTests {
   enum Command { LEFT, RIGHT, QUIT }
   enum Direction { NORTH, EAST, SOUTH, WEST }
   
@@ -16,22 +16,16 @@ class EventContinuationTests {
   }
   
   @Test
-  void robot() {
+  public void robot() {
     EventContinuation<Command, Direction> robot = new EventContinuation<>((yielder, parameter) -> {
       var direction = Direction.NORTH;
       var command = parameter;
       for(;;) {
-        switch(command) {
-        case LEFT:
-          direction = turn(direction, -1);
-          break;
-        case RIGHT:
-          direction = turn(direction, 1);
-          break;
-        case QUIT:
-        default:
-          return direction;
-        }
+        direction = switch(command) {
+            case LEFT -> turn(direction, -1);
+            case RIGHT -> turn(direction, 1);
+            case QUIT -> direction;
+          };
         command = yielder.yield(direction);
       }
     });

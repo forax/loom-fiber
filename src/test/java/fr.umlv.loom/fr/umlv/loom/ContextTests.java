@@ -7,9 +7,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import org.junit.jupiter.api.Test;
 
 @SuppressWarnings("static-method")
-class ContextTests {
+public class ContextTests {
   @Test
-  void defaultValue() {
+  public void defaultValue() {
     var context = new Context<>(() -> 42);
     context.enter(() -> {
       assertEquals(42, (int)context.getValue());
@@ -17,7 +17,7 @@ class ContextTests {
   }
   
   @Test
-  void enclosed() {
+  public void enclosed() {
     var context = new Context<>(() -> 1);
     var context2 = new Context<>(() -> 2);
     
@@ -30,7 +30,7 @@ class ContextTests {
   }
   
   @Test
-  void multipleThreads() throws InterruptedException {
+  public void multipleThreads() throws InterruptedException {
     var context = new Context<Thread>(() -> null);
     
     var threads = range(0, 4).mapToObj(i -> {
