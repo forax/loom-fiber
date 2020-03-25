@@ -9,13 +9,14 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.List;
-
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 @SuppressWarnings("static-method")
-class GeneratorsTests {
+@Disabled
+public class GeneratorsTests {
   @Test
-  void iteratorSimple() {
+  public void iteratorSimple() {
     assertAll(
         () -> assertFalse(Generators.iterator(consumer -> { /* */}).hasNext()),
         () -> assertTrue(Generators.iterator(consumer -> { consumer.accept("foo");}).hasNext()),
@@ -32,15 +33,15 @@ class GeneratorsTests {
   }
   
   @Test
-  void iteratorWithALotOfObject() {
-    var it = Generators.<Integer>iterator(consumer -> { range(0, 100_000).forEach(consumer::accept); });
+  public void iteratorWithALotOfObject() {
+    var it = Generators.<Integer>iterator(consumer -> { range(0, 1_000).forEach(consumer::accept); });
     var list = new ArrayList<Integer>();
     it.forEachRemaining(list::add);
-    assertEquals(range(0, 100_000).boxed().collect(toList()), list);
+    assertEquals(range(0, 1_000).boxed().collect(toList()), list);
   }
   
   @Test
-  void streamSimple() {
+  public void streamSimple() {
     assertAll(
         () -> assertFalse(Generators.stream(consumer -> { /* */}).findFirst().isPresent()),
         () -> assertTrue(Generators.stream(consumer -> { consumer.accept("foo");}).findFirst().isPresent()),
@@ -53,8 +54,8 @@ class GeneratorsTests {
   }
   
   @Test
-  void streamWithALotOfObject() {
-    var stream = Generators.<Integer>stream(consumer -> { range(0, 100_000).forEach(consumer::accept); });
-    assertEquals(range(0, 100_000).boxed().collect(toList()), stream.collect(toList()));
+  public void streamWithALotOfObject() {
+    var stream = Generators.<Integer>stream(consumer -> { range(0, 1_000).forEach(consumer::accept); });
+    assertEquals(range(0, 1_000).boxed().collect(toList()), stream.collect(toList()));
   }
 }
