@@ -60,7 +60,7 @@ public class TaskTests {
   }
   
   @Test
-  public void taskTimeouted() {
+  public void taskTimeout() {
     var task = async(() -> sleep(100));
     assertThrows(TimeoutException.class, () -> task.get(10, TimeUnit.MILLISECONDS));
     assertTrue(task.isCancelled());

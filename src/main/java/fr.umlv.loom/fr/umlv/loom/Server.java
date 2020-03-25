@@ -56,7 +56,7 @@ public class Server {
   }
   
   
-  private static void closeUnconditionnaly(Closeable closeable) {
+  private static void closeUnconditionally(Closeable closeable) {
     try {
       closeable.close();
     } catch (IOException e) {
@@ -76,8 +76,8 @@ public class Server {
           channel = server.accept();
         } catch (IOException e) {
           System.err.println(e.getMessage());
-          closeUnconditionnaly(server);
-          closeUnconditionnaly(selector);
+          closeUnconditionally(server);
+          closeUnconditionally(selector);
           return;
         }
         SelectionKey key;
@@ -86,7 +86,7 @@ public class Server {
           key = channel.register(selector, 0);
         } catch (IOException e) {
           System.err.println(e.getMessage());
-          closeUnconditionnaly(channel);
+          closeUnconditionally(channel);
           return;
         }
         
@@ -121,7 +121,7 @@ public class Server {
             e.printStackTrace();
           } finally {
             key.cancel();
-            closeUnconditionnaly(channel);
+            closeUnconditionally(channel);
           }
         });
         key.attach(continuation);

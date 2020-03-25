@@ -1,6 +1,6 @@
 package fr.umlv.loom.scheduler;
 
-public class InterruptableScheduler {
+public class InterruptibleScheduler {
   public static void main(String[] args) {
     var scope = new ContinuationScope("scope");
     var continuation = new Continuation(scope, () -> {

@@ -4,7 +4,7 @@ import java.util.Objects;
 import java.util.function.BiFunction;
 
 public class EventContinuation<P,R> {
-  private static final ContinuationScope SCOPE = new ContinuationScope("evant"); 
+  private static final ContinuationScope SCOPE = new ContinuationScope("event");
   
   private final Continuation continuation;
   private P parameter;
