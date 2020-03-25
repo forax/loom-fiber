@@ -20,7 +20,7 @@ public class Server {
   
   public interface IO {
     int read(ByteBuffer buffer) throws IOException;
-    int write(ByteBuffer buffer) throws IOException;
+    void write(ByteBuffer buffer) throws IOException;
     
     default String readLine(ByteBuffer buffer, Charset charset) throws IOException {
       int read;
@@ -56,7 +56,7 @@ public class Server {
   }
   
   
-  static void closeUnconditionnaly(Closeable closeable) {
+  private static void closeUnconditionnaly(Closeable closeable) {
     try {
       closeable.close();
     } catch (IOException e) {
@@ -105,14 +105,14 @@ public class Server {
             }
 
             @Override
-            public int write(ByteBuffer buffer) throws IOException {
-              int written;
-              while ((written = channel.write(buffer)) == 0) {
-                key.interestOps(SelectionKey.OP_WRITE);
-                Continuation.yield(SCOPE);
+            public void write(ByteBuffer buffer) throws IOException {
+              while(buffer.hasRemaining()) {
+                while (channel.write(buffer) == 0) {
+                  key.interestOps(SelectionKey.OP_WRITE);
+                  Continuation.yield(SCOPE);
+                }
               }
               key.interestOps(0);
-              return written;
             }
           };
           try {

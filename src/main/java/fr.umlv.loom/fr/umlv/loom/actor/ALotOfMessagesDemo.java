@@ -15,26 +15,24 @@ public class ALotOfMessagesDemo {
       public void run() {
         while (true) {
           receive(message -> {
-            switch((String)message) {
-              case "inc": {
+            switch ((String) message) {
+              case "inc" -> {
                 if (next != null) {
                   next.send(message);
                   break;
                 }
                 current().orElseThrow().send("counter");
-                break;
               }
-              case "counter": counter++; break;
-              case "end": {
+              case "counter" -> counter++;
+              case "end" -> {
                 if (next != null) {
                   next.send(message);
                 } else {
                   System.out.println(counter);
                 }
                 exit();
-                break;
               }
-              default: throw new IllegalStateException();
+              default -> throw new IllegalStateException();
             }
           });
         }

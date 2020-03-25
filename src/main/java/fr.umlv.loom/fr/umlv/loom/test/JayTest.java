@@ -96,7 +96,7 @@ public class JayTest {
     return expect0(value);
   }
   public static <T> Query<Supplier<T>> expect(Supplier<? extends T> supplier) {
-    return expect0((Supplier<T>)() -> supplier.get());
+    return expect0((Supplier<T>) supplier::get);
   }
   
   public record Result(boolean valid, String text) {
@@ -111,13 +111,13 @@ public class JayTest {
   
   @FunctionalInterface
   public interface Query<T> {
-    public Result eval(Predicate<? super T> predicate);
+    Result eval(Predicate<? super T> predicate);
     
-    public default Query<T> not() {
+    default Query<T> not() {
       return predicate -> eval(Predicate.not(predicate)).with(text -> "not " + text);
     }
     
-    public default void to(String message, Predicate<? super T> predicate) {
+    default void to(String message, Predicate<? super T> predicate) {
       Objects.requireNonNull(message);
       Objects.requireNonNull(predicate);
       var result = eval(predicate);
@@ -126,11 +126,11 @@ public class JayTest {
       }
     }
     
-    public default void toBe(Object expected) {
+    default void toBe(Object expected) {
       to("is equals to " + expected, value -> Objects.equals(value, expected));
     }    
     
-    public default Query<?> returnValue() {
+    default Query<?> returnValue() {
       return predicate -> {
         return eval (value -> {
           if (value instanceof Supplier<?> supplier) {

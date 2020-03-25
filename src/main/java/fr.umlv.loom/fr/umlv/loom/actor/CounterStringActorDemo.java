@@ -13,14 +13,12 @@ public class CounterStringActorDemo {
       public void run() {
         while (true) {
           receive(message -> {
-            switch((String)message) {
-            case "increment":
-              count++;
-              break;
-            case "value":
-              System.out.println("Value is " + count);
-              exit();
-              break;
+            switch ((String) message) {
+              case "increment" -> count++;
+              case "value" -> {
+                System.out.println("Value is " + count);
+                exit();
+              }
             }
           });
         }  

@@ -111,7 +111,7 @@ public final class Actor {
     }
   }
   
-  public static final <T> T exit() {
+  public static <T> T exit() {
     current().orElseThrow(() -> new IllegalStateException("no current actor available"));
     throw ExitError.INSTANCE;
   }

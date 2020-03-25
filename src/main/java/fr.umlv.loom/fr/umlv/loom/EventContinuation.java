@@ -11,7 +11,7 @@ public class EventContinuation<P,R> {
   private R yieldValue;
   
   public interface Yielder<P,R> {
-    public P yield(R yieldValue);
+    P yield(R yieldValue);
   }
   
   public EventContinuation(BiFunction<Yielder<? extends P, ? super R>, ? super P, ? extends R> consumer) {

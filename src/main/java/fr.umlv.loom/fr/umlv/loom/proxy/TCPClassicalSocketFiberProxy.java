@@ -1,7 +1,6 @@
 package fr.umlv.loom.proxy;
 
 import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
@@ -17,7 +16,7 @@ public class TCPClassicalSocketFiberProxy {
       try(socket1;
           socket2;
           var input1 = socket1.getInputStream();
-          var output2 = socket2.getOutputStream();) {
+          var output2 = socket2.getOutputStream()) {
         for(;;) {
           int read = input1.read(buffer);
           System.out.println("read " + read + " from " + Thread.currentThread());

@@ -48,7 +48,7 @@ public class Generators {
   
   public static <T> Stream<T> stream(Consumer<Consumer<? super T>> consumer) {
     Objects.requireNonNull(consumer);
-    return StreamSupport.stream(new Spliterator<T>() {
+    return StreamSupport.stream(new Spliterator<>() {
       private final Continuation continuation = new Continuation(SCOPE, () -> {
         consumer.accept(value -> {
           Objects.requireNonNull(value);

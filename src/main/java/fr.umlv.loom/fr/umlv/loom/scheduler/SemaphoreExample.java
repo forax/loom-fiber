@@ -33,7 +33,7 @@ public class SemaphoreExample {
     
     public void release(int somePermits) {
       permits += somePermits;
-      waitQueue.forEach(continuation -> scheduler.register(continuation));
+      waitQueue.forEach(scheduler::register);
       waitQueue.clear();
     }
   }
