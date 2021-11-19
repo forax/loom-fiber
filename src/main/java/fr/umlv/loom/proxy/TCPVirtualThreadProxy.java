@@ -1,5 +1,7 @@
 package fr.umlv.loom.proxy;
 
+import fr.umlv.loom.executor.VirtualThreadExecutor;
+
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.InetAddress;
@@ -54,9 +56,12 @@ public class TCPVirtualThreadProxy {
     var client = server.accept();
     //client.configureBlocking(false);
 
-    Thread.ofVirtual().start(runnable(client, remote));
-    Thread.ofVirtual().start(runnable(remote, client));
+    //Thread.ofVirtual().start(runnable(client, remote));
+    //Thread.ofVirtual().start(runnable(remote, client));
+    //Thread.sleep(1_000_000);
 
-    Thread.sleep(1_000_000);
+    var executor = new VirtualThreadExecutor();
+    executor.execute(runnable(client, remote));
+    executor.execute(runnable(remote, client));
   }
 }
