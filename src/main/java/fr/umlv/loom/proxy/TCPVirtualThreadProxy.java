@@ -1,5 +1,6 @@
 package fr.umlv.loom.proxy;
 
+import fr.umlv.loom.executor.UnsafeExecutors;
 import fr.umlv.loom.executor.VirtualThreadExecutor;
 
 import java.io.IOException;
@@ -56,11 +57,7 @@ public class TCPVirtualThreadProxy {
     var client = server.accept();
     //client.configureBlocking(false);
 
-    //Thread.ofVirtual().start(runnable(client, remote));
-    //Thread.ofVirtual().start(runnable(remote, client));
-    //Thread.sleep(1_000_000);
-
-    var executor = new VirtualThreadExecutor();
+    var executor = UnsafeExecutors.virtualThreadExecutor(Executors.newSingleThreadExecutor());
     executor.execute(runnable(client, remote));
     executor.execute(runnable(remote, client));
   }

@@ -1,4 +1,4 @@
-package fr.umlv.loom.structconc;
+package fr.umlv.loom.structconc.api;
 
 import java.time.Instant;
 import java.util.concurrent.Callable;

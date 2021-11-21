@@ -1,7 +1,6 @@
-package fr.umlv.loom.structconc;
+package fr.umlv.loom.structconc.api;
 
 import java.time.Instant;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.StructuredExecutor;

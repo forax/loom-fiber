@@ -1,4 +1,4 @@
-package fr.umlv.loom.structconc;
+package fr.umlv.loom.structconc.api;
 
 import java.io.IOException;
 import java.util.concurrent.ExecutionException;

@@ -146,7 +146,10 @@ public final class VirtualThreadExecutor implements ExecutorService {
   @Override
   public <T> Future<T> submit(Callable<T> task) {
     checkShutdownState();
-    return postSync(() -> executor.fork(task));
+    return postSync(() -> {
+      checkShutdownState();
+      return executor.fork(task);
+    });
   }
 
   @Override
@@ -166,6 +169,7 @@ public final class VirtualThreadExecutor implements ExecutorService {
   public <T> List<Future<T>> invokeAll(Collection<? extends Callable<T>> tasks) throws InterruptedException {
     checkShutdownState();
     return postSync(() -> {
+      checkShutdownState();
       try(var executor = StructuredExecutor.open()) {
         var list = tasks.stream().map(executor::fork).toList();
         executor.join();
@@ -179,6 +183,7 @@ public final class VirtualThreadExecutor implements ExecutorService {
     checkShutdownState();
     var deadline = Instant.now().plus(Duration.ofNanos(unit.toNanos(timeout)));
     return postSync(() -> {
+      checkShutdownState();
       try(var executor = StructuredExecutor.open()) {
         var futures = tasks.stream().map(executor::fork).toList();
         try {
@@ -195,6 +200,7 @@ public final class VirtualThreadExecutor implements ExecutorService {
   public <T> T invokeAny(Collection<? extends Callable<T>> tasks) throws InterruptedException, ExecutionException {
     checkShutdownState();
     return postSync(() -> {
+      checkShutdownState();
       try(var executor = StructuredExecutor.open()) {
         var handler = new ShutdownOnSuccess<T>();
         tasks.forEach(callable -> executor.fork(callable, handler));
@@ -209,6 +215,7 @@ public final class VirtualThreadExecutor implements ExecutorService {
     checkShutdownState();
     var deadline = Instant.now().plus(Duration.ofNanos(unit.toNanos(timeout)));
     return postSync(() -> {
+      checkShutdownState();
       try(var executor = StructuredExecutor.open()) {
         var handler = new ShutdownOnSuccess<T>();
         tasks.forEach(callable -> executor.fork(callable, handler));
