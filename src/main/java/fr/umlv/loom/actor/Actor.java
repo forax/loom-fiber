@@ -257,6 +257,14 @@ public final class Actor<B> {
    */
   public sealed interface HandlerContext {
     /**
+     * Post a new message to an actor.
+     * @param actor the actor that will receive the message
+     * @param message the message
+     * @param <B> the type of the behavior
+     */
+    <B> void postTo(Actor<B> actor, Message<? super B> message);
+
+    /**
      * Restart the current actor, cleaning the message queue and resetting the behavior
      * to a fresh one.
      *
@@ -402,6 +410,9 @@ public final class Actor<B> {
     }
 
     private Actor<?> currentActor() {
+      if (!CURRENT_ACTOR.isBound()) {
+        throw new IllegalActorStateException("no current actor");
+      }
       return CURRENT_ACTOR.get();
     }
 
@@ -481,6 +492,17 @@ public final class Actor<B> {
    */
   public static <B> Actor<B> of(Class<B> behaviorType) {
     return of(behaviorType, behaviorType.getSimpleName() + ACTOR_COUNTER.getAndIncrement());
+  }
+
+  /**
+   * Returns the name of the actor.
+   * The name can be any arbitrary name and is only useful for debugging purpose.
+   * @return the name of the actor.
+   * 
+   * @see Actor#of(Class, String) 
+   */
+  public String name() {
+    return name;
   }
 
   @Override
@@ -617,7 +639,9 @@ public final class Actor<B> {
     Objects.requireNonNull(consumer);
     for(Actor<?> actor: actors) {
       actor.checkOwner();
-      Objects.requireNonNull(actor.behaviorFactory, actor.name + " behavior is not defined");
+      if (actor.behaviorFactory == null) {
+        throw new IllegalActorStateException(actor.name + " behavior is not defined");
+      }
     }
     var context = new ContextImpl();
     var threads = actors.stream()
