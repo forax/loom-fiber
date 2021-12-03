@@ -105,10 +105,9 @@ import java.util.function.Function;
  *     });
  * </pre>
  *
- * In the method "createHello", we create the actor "hello",
- * spawn it and calls the callback with the actor.
- * We also register with onSignal the fact that if the actor "manager"
- * is shutdown, then the actor "callback" should be shutdown too.
+ * In the method "createHello", we create the actor "hello", spawn it and calls the callback with the actor.
+ * We also register with onSignal the fact that if the actor "manager" is shutdown, then the actor "callback"
+ * should be shutdown too.
  * <pre>
  * var manager = Actor.of(Manager.class)
  *     .behavior(context -> new Manager() {
@@ -130,10 +129,9 @@ import java.util.function.Function;
  *     .onSignal((signal, context) -> context.signal(callback, ShutdownSignal.INSTANCE));
  * </pre>
  *
- * To finish, we run the two actors "manager" and "callback", post a message
- * "createHello" and then ask to shut down the manager. This will shut down
- * the actor "hello" because it's a child of "manager" and the actor
- * "callback" because we have registered a signal handler to shut down it.
+ * To finish, we run the two actors "manager" and "callback", post a message "createHello" and
+ * then ask to shut down the manager. This will shut down the actor "hello" because it's a child of "manager"
+ * and the actor "callback" because we have registered a signal handler to shut down it.
  * <pre>
  * Actor.run(List.of(manager, callback), context -> {
  *   context.postTo(manager, $ -> $.createHello(callback));
