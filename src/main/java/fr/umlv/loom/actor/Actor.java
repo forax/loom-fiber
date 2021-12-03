@@ -18,9 +18,34 @@ import java.util.function.Function;
  * This library supports either a static description of the actor graph using the method {@link #run(List, Consumer)}
  * or a more dynamic approach by {@link Context#spawn(Actor) spawning} actors from a parent actor.
  *
- * Unlike most existing library, this actor library relies on an interface to describe all the possible
- * messages that an actor can receive and on lambdas to implement those messages
- * (in Java, a lambda is an unmodifiable class and the captured values are fields).
+ * <p>
+ * This actor library has a special API, it uses an interface to describe the
+ * {@link #behavior(Function) behavior} of an actor i.e all the possible messages that can be received
+ * and the implementations of those {@link Message messages} are lambdas.
+ *
+ * <p>
+ * An actor is defined by
+ * <ul>
+ *   <li>a {@link Actor#name() name}</li>
+ *   <li>a {@link Actor#state() state}, either {@link State#CREATED CREATED},
+ *   {@link State#RUNNING RUNNING} or {@link State#SHUTDOWN SHUTDOWN}.</li>
+ *   <li>a restartable {@link Actor#behavior(Function) behavior}.</li>
+ *   <li>{@link Actor#onSignal(SignalHandler) signal handlers} to react to a {@link Signal signal} that stop
+ *       the actor, either a {@link ShutdownSignal shutdown signal} or a {@link PanicSignal panic exception}.</li>
+ * </ul>
+ *
+ * The library defines 3 different contexts
+ * <ol>
+ *   <li>the startup context, inside the consumer of {@link Actor#run(List, Consumer) run}, the only action available
+ *   is {@link StartupContext#postTo(Actor, Message) postTo}.</li>
+ *   <li>the actor context, inside the {@link Actor#behavior(Function) behavior} of an actor, the actions available
+ *   are {@link Context#currentActor(Class) currentActor}, {@link Context#panic(Exception) panic},
+ *   {@link Context#postTo(Actor, Message) postTo}, {@link Context#spawn(Actor) spawn} and
+ *   {@link Context#shutdown() shutdown}.</li>
+ *   <li>the handler context, inside the {@link Actor#onSignal(SignalHandler) signal handler}, the actions available
+ *   are {@link HandlerContext#postTo(Actor, Message) postTo}, {@link HandlerContext#restart() restart}  and
+ *   {@link HandlerContext#signal(Actor, Signal) signal}.</li>
+ * </ol>
  *
  * The actor and its behavior are declared separately, {@link #of(Class, String)} creates an actor
  * with an interface describing all the messages.
@@ -33,7 +58,7 @@ import java.util.function.Function;
  * Actor&lt;Hello&gt; hello = Actor.of(Hello.class);
  * </pre>
  *
- * Then {@link #behavior(Function)} describes its behavior, i.e. how to react to the different messages.
+ * The method {@link #behavior(Function)} describes its behavior, i.e. how to react to the different messages.
  * The {@link Context} object provides the operations that an actor can do.
  * <pre>
  * hello.behavior(context -> new Hello() {
@@ -49,7 +74,7 @@ import java.util.function.Function;
  *
  * To run as a static configuration, the method {@link #run(List, Consumer)} takes a list of
  * actors and start them. So when can send a message "say" to the actor "hello" and message "end"
- * so ask the actor "hello" to gently shutdown itself.
+ * to ask the actor "hello" to gently shutdown itself.
  * <pre>
  * Actor.run(List.of(hello), context -> {
  *   context.postTo(hello, $ -> $.say("actors using loom"));
@@ -108,7 +133,7 @@ import java.util.function.Function;
  * To finish, we run the two actors "manager" and "callback", post a message
  * "createHello" and then ask to shut down the manager. This will shut down
  * the actor "hello" because it's a child of "manager" and the actor
- * "callback" because we have registered a signal handler shutdown it.
+ * "callback" because we have registered a signal handler to shut down it.
  * <pre>
  * Actor.run(List.of(manager, callback), context -> {
  *   context.postTo(manager, $ -> $.createHello(callback));
@@ -237,10 +262,10 @@ public final class Actor<B> {
   }
 
   /**
-   * Actions that can be done outside the behavior of an actor
+   * Actions that can be done at startup after the first actors are running
    * @see #run(List, Consumer)
    */
-  public sealed interface StartContext {
+  public sealed interface StartupContext {
     /**
      * Post a new message to an actor.
      * @param actor the actor that will receive the message
@@ -399,7 +424,7 @@ public final class Actor<B> {
     }
   }
 
-  private static final class ContextImpl implements Context, StartContext, HandlerContext {
+  private static final class ContextImpl implements Context, StartupContext, HandlerContext {
     @SuppressWarnings("unchecked")
     public <B> Actor<B> currentActor(Class<B> behaviorType) {
       var actor = currentActor();
@@ -626,7 +651,7 @@ public final class Actor<B> {
   }
 
   /**
-   * Starts all the actors, {@link StartContext#postTo(Actor, Message) post} some messages
+   * Starts all the actors, {@link StartupContext#postTo(Actor, Message) post} some messages
    * and wait until all actors have been shutdown.
    * @param actors a list of actors to start
    * @param consumer a code that can post messages
@@ -634,7 +659,7 @@ public final class Actor<B> {
    * @throws IllegalActorStateException if the current thread is not the one that have created the actors
    *   if an actor is already running/shutdown or if an actor has no behavior
    */
-  public static void run(List<? extends Actor<?>> actors, Consumer<? super StartContext> consumer) throws InterruptedException {
+  public static void run(List<? extends Actor<?>> actors, Consumer<? super StartupContext> consumer) throws InterruptedException {
     Objects.requireNonNull(actors);
     Objects.requireNonNull(consumer);
     for(Actor<?> actor: actors) {
