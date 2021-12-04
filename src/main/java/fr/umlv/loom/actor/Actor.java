@@ -560,13 +560,23 @@ public final class Actor<B> {
     return state;
   }
 
+  private static void logException(Actor<?> actor, Exception exception) {
+    try {
+      uncaughtExceptionHandler.uncaughtException(actor, exception);
+    } catch (Exception e) {
+      // the global exception handler fails !
+      e.addSuppressed(exception);
+      e.printStackTrace();
+    }
+  }
+
   private static void signalNow(Signal signal, ContextImpl context, Actor<?> actor) {
     actor.state = State.SHUTDOWN;
     for (var handler : actor.signalHandlers) {
       try {
         handler.handle(signal, context);
       } catch (Exception e) {
-        uncaughtExceptionHandler.uncaughtException(actor, new IllegalActorStateException("error in signal handler", e));
+        logException(actor, new IllegalActorStateException("error in signal handler", e));
       }
     }
   }
@@ -600,7 +610,7 @@ public final class Actor<B> {
               message.accept(behavior);
             } catch (Exception | PanicError e) {
               var exception = e instanceof PanicError panicError ? panicError.getCause() : (Exception) e;
-              uncaughtExceptionHandler.uncaughtException(actor, exception);
+              logException(actor, exception);
               signalNow(new PanicSignal(exception), context, actor);
               return;
             }
