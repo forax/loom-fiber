@@ -1,7 +1,6 @@
 package fr.umlv.loom.actor;
 
 import fr.umlv.loom.actor.Actor.Context;
-import fr.umlv.loom.actor.Actor.PanicSignal;
 import fr.umlv.loom.actor.Actor.ShutdownSignal;
 
 import java.util.ArrayList;
