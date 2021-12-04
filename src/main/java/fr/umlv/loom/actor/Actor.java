@@ -695,7 +695,7 @@ public final class Actor<B> {
 
   /**
    * Set the global exception handler.
-   * This handler should be use to log exceptions, not to try to recover exception
+   * This handler should be used to log exceptions, not to try to recover exception
    * @param uncaughtExceptionHandler exception handler called when an actor behavior throw an exception
    *
    * @see #onSignal(SignalHandler)
