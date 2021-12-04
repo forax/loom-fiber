@@ -4,7 +4,7 @@ import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
 import java.util.List;
 import java.util.Objects;
-import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Condition;
@@ -142,25 +142,30 @@ import java.util.function.Function;
  * @param <B> type of the behavior
  */
 public final class Actor<B> {
-  private static final VarHandle STATE;
+  private static final VarHandle STATE, SIGNAL_COUNTER, UNCAUGHT_EXCEPTION_HANDLER;
   static {
+    var lookup = MethodHandles.lookup();
     try {
-      STATE = MethodHandles.lookup().findVarHandle(Actor.class, "state", State.class);
+      STATE = lookup.findVarHandle(Actor.class, "state", State.class);
+      SIGNAL_COUNTER = lookup.findVarHandle(Actor.class, "signalCounter", int.class);
+      UNCAUGHT_EXCEPTION_HANDLER = lookup.findStaticVarHandle(Actor.class, "uncaughtExceptionHandler", UncaughtExceptionHandler.class);
     } catch (NoSuchFieldException | IllegalAccessException e) {
       throw new AssertionError(e);
     }
   }
-  private static volatile UncaughtExceptionHandler uncaughtExceptionHandler = (actor, exception) -> {
+  private static final UncaughtExceptionHandler DEFAULT_UNCAUGHT_EXCEPTION_HANDLER = (actor, exception) -> {
     System.err.println("In actor " + actor.name + ":");
     exception.printStackTrace();
   };
+  private static volatile UncaughtExceptionHandler uncaughtExceptionHandler = DEFAULT_UNCAUGHT_EXCEPTION_HANDLER;
   private static final AtomicInteger ACTOR_COUNTER = new AtomicInteger(1);
   private static final ScopeLocal<Actor<?>> CURRENT_ACTOR = ScopeLocal.newInstance();
   private final Thread ownerThread;
   private final Class<B> behaviorType;
   private final String name;
   private final LinkedBlockingDeque<Message<? super B>> mailbox = new LinkedBlockingDeque<>();
-  private final CopyOnWriteArrayList<SignalHandler> signalHandlers = new CopyOnWriteArrayList<>();
+  private volatile int signalCounter;  // grow monotonically so the registered handlers are in the right order
+  private final ConcurrentSkipListMap<Integer, SignalHandler> signalHandlers = new ConcurrentSkipListMap<>();
   private /*stable*/ Function<? super Context, ? extends B> behaviorFactory;
   private volatile State state = State.CREATED;
 
@@ -477,7 +482,10 @@ public final class Actor<B> {
       actor.checkOwner();
       Objects.requireNonNull(actor.behaviorFactory, actor.name + " behavior is not defined");
       var currentActor = currentActor();
-      currentActor.signalHandlers.add((signal, handlerContext) -> handlerContext.signal(actor, ShutdownSignal.INSTANCE));
+      // shutdown all children
+      var key = currentActor.addSignalHandler((__, handlerContext) -> handlerContext.signal(actor, ShutdownSignal.INSTANCE));
+      // remove the handler if the child is shutdown
+      actor.addSignalHandler((_1, _2) -> currentActor.removeSignalHandler(key));
       startThread(this, actor);
     }
 
@@ -560,6 +568,16 @@ public final class Actor<B> {
     return state;
   }
 
+  private int addSignalHandler(SignalHandler signalHandler) {
+    var key = (int) SIGNAL_COUNTER.getAndAdd(this, 1);
+    signalHandlers.put(key, signalHandler);
+    return key;
+  }
+
+  private void removeSignalHandler(int key) {
+    signalHandlers.remove(key);
+  }
+
   private static void logException(Actor<?> actor, Exception exception) {
     try {
       uncaughtExceptionHandler.uncaughtException(actor, exception);
@@ -572,13 +590,14 @@ public final class Actor<B> {
 
   private static void signalNow(Signal signal, ContextImpl context, Actor<?> actor) {
     actor.state = State.SHUTDOWN;
-    for (var handler : actor.signalHandlers) {
+    for (var handler : actor.signalHandlers.values()) {
       try {
         handler.handle(signal, context);
       } catch (Exception e) {
         logException(actor, new IllegalActorStateException("error in signal handler", e));
       }
     }
+    actor.signalHandlers.clear();
   }
 
   private static <B> Thread startThread(ContextImpl context, Actor<B> actor) {
@@ -673,7 +692,7 @@ public final class Actor<B> {
     Objects.requireNonNull(handler);
     checkOwner();
     checkStateCreated();
-    signalHandlers.add(handler);
+    addSignalHandler(handler);
     return this;
   }
 
@@ -707,12 +726,15 @@ public final class Actor<B> {
    * Set the global exception handler.
    * This handler should be used to log exceptions, not to try to recover exception
    * @param uncaughtExceptionHandler exception handler called when an actor behavior throw an exception
+   * @throws IllegalActorStateException if the global exception handler has already been set
    *
    * @see #onSignal(SignalHandler)
    */
   public static void uncaughtExceptionHandler(UncaughtExceptionHandler uncaughtExceptionHandler) {
     Objects.requireNonNull(uncaughtExceptionHandler);
-    Actor.uncaughtExceptionHandler = uncaughtExceptionHandler;
+    if (!UNCAUGHT_EXCEPTION_HANDLER.compareAndSet(DEFAULT_UNCAUGHT_EXCEPTION_HANDLER, uncaughtExceptionHandler)) {
+      throw new IllegalActorStateException("uncaught exception handler already set");
+    }
   }
 }
 

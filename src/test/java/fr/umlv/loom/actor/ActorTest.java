@@ -333,6 +333,11 @@ public class ActorTest {
     assertThrows(NullPointerException.class, () -> Actor.uncaughtExceptionHandler(null));
   }
 
+  @Test
+  public void uncaughtExceptionHandlerAlreadySet() {
+    assertThrows(IllegalActorStateException.class, () -> Actor.uncaughtExceptionHandler((actor, exception) -> {}));
+  }
+
   @Test @Timeout(value = 500, unit = MILLISECONDS)
   public void runWithTwoActorsWithSignal() throws InterruptedException {
     interface Dummy {
