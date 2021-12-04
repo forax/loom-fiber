@@ -14,6 +14,11 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class ActorTest {
+  static {
+    Actor.uncaughtExceptionHandler((actor, exception) -> {
+      // ignore exceptions
+    });
+  }
 
   @Test
   public void stateCreated() {
@@ -89,7 +94,7 @@ public class ActorTest {
     }).start();
   }
 
-  @Test
+  @Test @Timeout(value = 500, unit = MILLISECONDS)
   public void behaviorSeveralMessages() throws InterruptedException {
     interface Dummy {
       void foo(String message);
@@ -136,14 +141,16 @@ public class ActorTest {
     }).start();
   }
 
-  @Test
-  public void onSignalExeception() throws InterruptedException {
+  @Test @Timeout(value = 500, unit = MILLISECONDS)
+  public void onSignalException() throws InterruptedException {
     interface Transparent {
       void message(Exception exception) throws Exception;
     }
+    var exceptionSeen = new AtomicBoolean();
     var actor = Actor.of(Transparent.class)
         .behavior(context -> exception -> { throw exception; })
         .onSignal((signal, context) -> {
+          exceptionSeen.set(true);
           assertTrue(signal instanceof PanicSignal);
           var panicSignal = (PanicSignal) signal;
           var exception = panicSignal.exception();
@@ -155,10 +162,105 @@ public class ActorTest {
     Actor.run(List.of(actor), context -> {
       context.postTo(actor, $ -> $.message(new Exception("foo")));
     });
-    assertEquals(State.SHUTDOWN, actor.state());
+    assertAll(
+        () -> assertEquals(State.SHUTDOWN, actor.state()),
+        () -> assertTrue(exceptionSeen.get())
+    );
   }
 
-  @Test
+  @Test @Timeout(value = 500, unit = MILLISECONDS)
+  public void onSignalRuntimeException() throws InterruptedException {
+    var exceptionSeen = new AtomicBoolean();
+    var actor = Actor.of(Runnable.class)
+        .behavior(context -> () -> { throw new IllegalStateException("foo"); })
+        .onSignal((signal, context) -> {
+          exceptionSeen.set(true);
+          assertTrue(signal instanceof PanicSignal);
+          var panicSignal = (PanicSignal) signal;
+          var exception = panicSignal.exception();
+          assertAll(
+              () -> assertEquals(IllegalStateException.class, exception.getClass()),
+              () -> assertEquals("foo", exception.getMessage())
+          );
+        });
+    Actor.run(List.of(actor), context -> {
+      context.postTo(actor, Runnable::run);
+    });
+    assertAll(
+        () -> assertEquals(State.SHUTDOWN, actor.state()),
+        () -> assertTrue(exceptionSeen.get())
+    );
+  }
+
+  @Test @Timeout(value = 500, unit = MILLISECONDS)
+  public void onSignalInterrupted() throws InterruptedException {
+    var exceptionSeen = new AtomicBoolean();
+    var actor = Actor.of(Runnable.class)
+        .behavior(context -> () -> {
+          Thread.currentThread().interrupt();
+        })
+        .onSignal((signal, context) -> {
+          exceptionSeen.set(true);
+          assertTrue(signal instanceof PanicSignal);
+          var panicSignal = (PanicSignal) signal;
+          var exception = panicSignal.exception();
+          assertEquals(InterruptedException.class, exception.getClass());
+        });
+    Actor.run(List.of(actor), context -> {
+      context.postTo(actor, Runnable::run);
+    });
+    assertAll(
+        () -> assertEquals(State.SHUTDOWN, actor.state()),
+        () -> assertTrue(exceptionSeen.get())
+    );
+  }
+
+  @Test @Timeout(value = 500, unit = MILLISECONDS)
+  public void onSignalInterruptedExplicitException() throws InterruptedException {
+    interface Action {
+      void run() throws InterruptedException;
+    }
+    var exceptionSeen = new AtomicBoolean();
+    var actor = Actor.of(Action.class)
+        .behavior(context -> () -> {
+          throw new InterruptedException();
+        })
+        .onSignal((signal, context) -> {
+          exceptionSeen.set(true);
+          assertTrue(signal instanceof PanicSignal);
+          var panicSignal = (PanicSignal) signal;
+          var exception = panicSignal.exception();
+          assertEquals(InterruptedException.class, exception.getClass());
+        });
+    Actor.run(List.of(actor), context -> {
+      context.postTo(actor, Action::run);
+    });
+    assertAll(
+        () -> assertEquals(State.SHUTDOWN, actor.state()),
+        () -> assertTrue(exceptionSeen.get())
+    );
+  }
+
+  @Test @Timeout(value = 500, unit = MILLISECONDS)
+  public void onSignalExceptionInSignalHandler() throws InterruptedException {
+    var exceptionSeen = new AtomicBoolean();
+    var actor = Actor.of(Runnable.class)
+        .behavior(context -> () -> { throw new RuntimeException(); })
+        .onSignal((signal, context) -> {
+          exceptionSeen.set(true);
+          assertTrue(signal instanceof PanicSignal);
+          throw new IllegalStateException("error in signal handler");
+        });
+    Actor.run(List.of(actor), context -> {
+      context.postTo(actor, Runnable::run);
+    });
+    assertAll(
+        () -> assertEquals(State.SHUTDOWN, actor.state()),
+        () -> assertTrue(exceptionSeen.get())
+    );
+  }
+
+  @Test @Timeout(value = 500, unit = MILLISECONDS)
   public void currentActor() throws InterruptedException {
     var box = new Object() { Actor<Runnable> actor; };
     var actor = Actor.of(Runnable.class);
@@ -172,7 +274,7 @@ public class ActorTest {
     assertSame(actor, box.actor);
   }
 
-  @Test
+  @Test @Timeout(value = 500, unit = MILLISECONDS)
   public void currentActorWrongBehaviorClass() throws InterruptedException {
     var box = new Object() { Exception exception; };
     var actor = Actor.of(Runnable.class)
@@ -188,7 +290,7 @@ public class ActorTest {
     assertEquals(IllegalActorStateException.class, box.exception.getClass());
   }
 
-  @Test
+  @Test @Timeout(value = 500, unit = MILLISECONDS)
   public void escapeActorContext() throws InterruptedException {
     var box = new Object() { Actor.Context context; };
     var actor = Actor.of(Runnable.class);
@@ -227,6 +329,11 @@ public class ActorTest {
   }
 
   @Test
+  public void uncaughtExceptionHandlerNull() {
+    assertThrows(NullPointerException.class, () -> Actor.uncaughtExceptionHandler(null));
+  }
+
+  @Test @Timeout(value = 500, unit = MILLISECONDS)
   public void runWithTwoActorsWithSignal() throws InterruptedException {
     interface Dummy {
       void execute();
@@ -244,7 +351,7 @@ public class ActorTest {
     });
   }
 
-  @Test
+  @Test @Timeout(value = 500, unit = MILLISECONDS)
   public void runWithTwoActorsWithPostTo() throws InterruptedException {
     interface Ops1 {
       void execute();
@@ -276,7 +383,7 @@ public class ActorTest {
     });
   }
 
-  @Test
+  @Test @Timeout(value = 5_000, unit = MILLISECONDS)
   public void runAndRestart() throws InterruptedException {
     class Box {
       int result;
@@ -314,7 +421,7 @@ public class ActorTest {
       context.postTo(actor, $ -> $.execute(10));
       context.postTo(actor, $ -> $.execute(-13));
       try {
-        Thread.sleep(1_000);
+        Thread.sleep(500);
       } catch (InterruptedException e) {
         throw new AssertionError(e);
       }
@@ -325,7 +432,7 @@ public class ActorTest {
     assertEquals(32, box.result);
   }
 
-  @Test
+  @Test @Timeout(value = 500, unit = MILLISECONDS)
   public void runAndSpawn() throws InterruptedException {
     interface Behavior {
       void execute();

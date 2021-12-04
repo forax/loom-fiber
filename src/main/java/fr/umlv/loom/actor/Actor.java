@@ -150,6 +150,10 @@ public final class Actor<B> {
       throw new AssertionError(e);
     }
   }
+  private static volatile UncaughtExceptionHandler uncaughtExceptionHandler = (actor, exception) -> {
+    System.err.println("In actor " + actor.name + ":");
+    exception.printStackTrace();
+  };
   private static final AtomicInteger ACTOR_COUNTER = new AtomicInteger(1);
   private static final ScopeLocal<Actor<?>> CURRENT_ACTOR = ScopeLocal.newInstance();
   private final Thread ownerThread;
@@ -357,6 +361,21 @@ public final class Actor<B> {
     void shutdown();
   }
 
+  /**
+   * Called when an exception occurs.
+   * This handler should be used for logging purpose only.
+   *
+   * @see #uncaughtExceptionHandler(UncaughtExceptionHandler)
+   */
+  @FunctionalInterface
+  public interface UncaughtExceptionHandler {
+    /**
+     * @param actor the actor generating the exception
+     * @param exception the exception
+     */
+    void uncaughtException(Actor<?> actor, Exception exception);
+  }
+
   private final static class SignalMessage implements Message<Object> {
     private final Signal signal;
     private volatile boolean done;
@@ -547,7 +566,7 @@ public final class Actor<B> {
       try {
         handler.handle(signal, context);
       } catch (Exception e) {
-        new IllegalActorStateException("error in signal handler", e).printStackTrace();
+        uncaughtExceptionHandler.uncaughtException(actor, new IllegalActorStateException("error in signal handler", e));
       }
     }
   }
@@ -581,7 +600,7 @@ public final class Actor<B> {
               message.accept(behavior);
             } catch (Exception | PanicError e) {
               var exception = e instanceof PanicError panicError ? panicError.getCause() : (Exception) e;
-              new IllegalActorStateException(exception).printStackTrace();
+              uncaughtExceptionHandler.uncaughtException(actor, exception);
               signalNow(new PanicSignal(exception), context, actor);
               return;
             }
@@ -672,6 +691,18 @@ public final class Actor<B> {
         .toList();
     consumer.accept(context);
     joinAll(threads);
+  }
+
+  /**
+   * Set the global exception handler.
+   * This handler should be use to log exceptions, not to try to recover exception
+   * @param uncaughtExceptionHandler exception handler called when an actor behavior throw an exception
+   *
+   * @see #onSignal(SignalHandler)
+   */
+  public static void uncaughtExceptionHandler(UncaughtExceptionHandler uncaughtExceptionHandler) {
+    Objects.requireNonNull(uncaughtExceptionHandler);
+    Actor.uncaughtExceptionHandler = uncaughtExceptionHandler;
   }
 }
 
