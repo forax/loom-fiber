@@ -5,8 +5,7 @@ import java.lang.invoke.VarHandle;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentSkipListMap;
-import java.util.concurrent.LinkedBlockingDeque;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
@@ -142,13 +141,14 @@ import java.util.function.Function;
  * @param <B> type of the behavior
  */
 public final class Actor<B> {
-  private static final VarHandle STATE, SIGNAL_COUNTER, UNCAUGHT_EXCEPTION_HANDLER;
+  private static final VarHandle ACTOR_COUNTER, UNCAUGHT_EXCEPTION_HANDLER, STATE, SIGNAL_COUNTER;
   static {
     var lookup = MethodHandles.lookup();
     try {
+      ACTOR_COUNTER = lookup.findStaticVarHandle(Actor.class, "actorCounter", int.class);
+      UNCAUGHT_EXCEPTION_HANDLER = lookup.findStaticVarHandle(Actor.class, "uncaughtExceptionHandler", UncaughtExceptionHandler.class);
       STATE = lookup.findVarHandle(Actor.class, "state", State.class);
       SIGNAL_COUNTER = lookup.findVarHandle(Actor.class, "signalCounter", int.class);
-      UNCAUGHT_EXCEPTION_HANDLER = lookup.findStaticVarHandle(Actor.class, "uncaughtExceptionHandler", UncaughtExceptionHandler.class);
     } catch (NoSuchFieldException | IllegalAccessException e) {
       throw new AssertionError(e);
     }
@@ -158,12 +158,12 @@ public final class Actor<B> {
     exception.printStackTrace();
   };
   private static volatile UncaughtExceptionHandler uncaughtExceptionHandler = DEFAULT_UNCAUGHT_EXCEPTION_HANDLER;
-  private static final AtomicInteger ACTOR_COUNTER = new AtomicInteger(1);
+  private static volatile int actorCounter = 1;
   private static final ScopeLocal<Actor<?>> CURRENT_ACTOR = ScopeLocal.newInstance();
   private final Thread ownerThread;
   private final Class<B> behaviorType;
   private final String name;
-  private final LinkedBlockingDeque<Message<? super B>> mailbox = new LinkedBlockingDeque<>();
+  private final LinkedBlockingQueue<Message<? super B>> mailbox = new LinkedBlockingQueue<>();
   private volatile int signalCounter;  // grow monotonically so the registered handlers are in the right order
   private final ConcurrentSkipListMap<Integer, SignalHandler> signalHandlers = new ConcurrentSkipListMap<>();
   private /*stable*/ Function<? super Context, ? extends B> behaviorFactory;
@@ -541,7 +541,7 @@ public final class Actor<B> {
    * @return a new actor
    */
   public static <B> Actor<B> of(Class<B> behaviorType) {
-    return of(behaviorType, behaviorType.getSimpleName() + ACTOR_COUNTER.getAndIncrement());
+    return of(behaviorType, behaviorType.getSimpleName() + (int) ACTOR_COUNTER.getAndAdd(1));
   }
 
   /**
