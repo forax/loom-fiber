@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <script>
+window.onload = () => {
+  let tasks = document.getElementById("tasks");
+  let content = document.getElementById("content");
+  let button = document.getElementById("button");
+
+  function remove(taskId) {
+    fetch("http://localhost:8080/tasks/" + taskId, { method: 'DELETE' })
+      .then(response => {
+        //console.log("delete task");
+        refresh();
+      });
+  }
+
+  function refresh() {
+    fetch("http://localhost:8080/tasks", { method: 'GET' })
+      .then(response => response.json())
+      .then(json => {
+        //console.log("get tasks response ", json);
+        tasks.innerHTML = "";
+        json.forEach(task => {
+          var element = document.createElement("div");
+          var content = document.createElement("div");
+          content.append(task.content);
+          var trash = document.createElement("button");
+          trash.append("X");
+          element.append(trash);
+          element.append(content);
+          tasks.append(element);
+
+          trash.onclick = () => {
+            remove(task.id);
+          };
+        });
+      })
+      .catch(error => console.error('error:', error));
+  }
+  refresh();
+
+  let action = () => {
+    let text = content.value;
+    if (text == "") {
+      return;
+    }
+    let newTask = { content: text };
+    fetch("http://localhost:8080/tasks", {
+          method: 'POST',
+          body: JSON.stringify(newTask),
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        })
+    .then(response => response.json())
+    .then(json => {
+      //console.log("post tasks response ", json);
+      content.value = "";
+      refresh();
+    })
+    .catch(error => console.error('error:', error));
+  };
+  button.onclick = action;
+  content.onchange = action;
+};
+    </script>
+    <style>
+#container {
+  width: 70%;
+  margin: auto;
+}
+#content {
+    width: 65%;
+    height: 45px;
+    margin: 10px;
+    font-size: 16px;
+    color: black;
+    border: 2px solid lightgray;
+    border-radius: 5px;
+}
+#content:focus {
+    outline: none;
+    border-color: blue;
+    caret-color: blue;
+}
+#button {
+    float: right;
+    width: 20%;
+    height: 45px;
+    padding: 12px;
+    margin: 12px;
+    font-size: 16px;
+    background-color: blue;
+    color: white;
+    border: none;
+    outline: none;
+    border-radius: 5px;
+}
+
+#tasks {
+  width: 70%;
+  margin: auto;
+}
+#tasks div {
+  width: auto;
+  background-color: antiquewhite;
+  color: black;
+  font-size: 16px;
+  border-radius: 5px;
+}
+#tasks div div {
+  width: 85%;
+  padding: 12px;
+  margin: 14px;
+}
+#tasks button {
+  float: right;
+  width: 30px;
+  height: 30px;
+  margin: 7px;
+  font-size: 16px;
+  background-color: lightgray;
+  color: black;
+  border: none;
+  outline: none;
+  border-radius: 3px;
+}
+    </style>
+  </head>
+  <body>
+    <div id="container">
+      <input id="content" type="text" placeholder="Type something here ...">
+      <button id="button">Add</button>
+    </div>
+    <div id="tasks">
+    </div>
+  </body>
+</html>

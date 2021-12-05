@@ -304,7 +304,7 @@ public class ActorTest {
     var context = box.context;
     assertAll(
         () -> assertThrows(IllegalActorStateException.class, () -> context.currentActor(Runnable.class)),
-        () -> assertThrows(IllegalActorStateException.class, () -> context.spawn(Actor.of(Runnable.class).behavior(ctx -> () -> {}))),
+        //() -> assertThrows(IllegalActorStateException.class, () -> context.spawn(Actor.of(Runnable.class).behavior(ctx -> () -> {}))),
         () -> assertThrows(IllegalActorStateException.class, context::shutdown)
     );
   }
@@ -438,7 +438,7 @@ public class ActorTest {
   }
 
   @Test @Timeout(value = 500, unit = MILLISECONDS)
-  public void runAndSpawn() throws InterruptedException {
+  public void runAndSpawnFromActor() throws InterruptedException {
     interface Behavior {
       void execute();
       void done();
@@ -464,6 +464,22 @@ public class ActorTest {
     Actor.run(List.of(actor), context -> {
       context.postTo(actor, Behavior::execute);
       context.postTo(actor, Behavior::done);
+    });
+  }
+
+  @Test @Timeout(value = 500, unit = MILLISECONDS)
+  public void runAndSpawn() throws InterruptedException {
+    var actor1 = Actor.of(Runnable.class);
+    var actor2 = Actor.of(Runnable.class);
+    actor1.behavior(context -> context::shutdown);
+    actor2
+        .behavior(context -> () -> {
+          context.postTo(actor1, Runnable::run);
+          context.shutdown();
+        });
+    Actor.run(List.of(actor1), context -> {
+      context.spawn(actor2);
+      context.postTo(actor2, Runnable::run);
     });
   }
 }

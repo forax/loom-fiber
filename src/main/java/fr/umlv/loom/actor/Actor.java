@@ -8,14 +8,14 @@ import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.function.Consumer;
 import java.util.function.Function;
 
 /**
  * An actor library lika Akka or Erlang.
  *
- * This library supports either a static description of the actor graph using the method {@link #run(List, Consumer)}
- * or a more dynamic approach by {@link Context#spawn(Actor) spawning} actors from a parent actor.
+ * This library supports either a static description of the actor graph using the method
+ * {@link #run(List, StartupConsumer)} or a more dynamic approach by {@link Context#spawn(Actor) spawning}
+ * actors from a parent actor.
  *
  * <p>
  * This actor library has a special API, it uses an interface to describe the
@@ -35,8 +35,8 @@ import java.util.function.Function;
  *
  * The library defines 3 different contexts
  * <ol>
- *   <li>the startup context, inside the consumer of {@link Actor#run(List, Consumer) run}, the only action available
- *   is {@link StartupContext#postTo(Actor, Message) postTo}.</li>
+ *   <li>the startup context, inside the consumer of {@link Actor#run(List, StartupConsumer) run}, the actions
+ *   available are {@link StartupContext#postTo(Actor, Message) postTo} and {@link Context#spawn(Actor) spawn}.</li>
  *   <li>the actor context, inside the {@link Actor#behavior(Function) behavior} of an actor, the actions available
  *   are {@link Context#currentActor(Class) currentActor}, {@link Context#panic(Exception) panic},
  *   {@link Context#postTo(Actor, Message) postTo}, {@link Context#spawn(Actor) spawn} and
@@ -71,7 +71,7 @@ import java.util.function.Function;
  * });
  * </pre>
  *
- * To run as a static configuration, the method {@link #run(List, Consumer)} takes a list of
+ * To run as a static configuration, the method {@link #run(List, StartupConsumer)} takes a list of
  * actors and start them. So when can send a message "say" to the actor "hello" and message "end"
  * to ask the actor "hello" to gently shutdown itself.
  * <pre>
@@ -178,7 +178,7 @@ public final class Actor<B> {
      */
     CREATED,
     /**
-     * state of the actor when running either after calling {@link #run(List, Consumer)}
+     * state of the actor when running either after calling {@link #run(List, StartupConsumer)}
      * or {@link Context#spawn(Actor)}.
      */
     RUNNING,
@@ -229,6 +229,10 @@ public final class Actor<B> {
     void accept(B behavior) throws Exception;
   }
 
+  public interface StartupConsumer<X extends Exception> {
+    void accept(StartupContext context) throws X;
+  }
+
   /**
    * A signal with two possible implementation {@link ShutdownSignal} and {@link PanicSignal}.
    */
@@ -270,7 +274,7 @@ public final class Actor<B> {
 
   /**
    * Actions that can be done at startup after the first actors are running
-   * @see #run(List, Consumer)
+   * @see #run(List, StartupConsumer) 
    */
   public sealed interface StartupContext {
     /**
@@ -280,6 +284,14 @@ public final class Actor<B> {
      * @param <B> the type of the behavior
      */
     <B> void postTo(Actor<B> actor, Message<? super B> message);
+
+    /**
+     * Dynamically spawn an actor.
+     *
+     * @param actor the actor
+     * @throws IllegalActorStateException if the actor was created by another thread
+     */
+    void spawn(Actor<?> actor);
   }
 
   /**
@@ -353,8 +365,7 @@ public final class Actor<B> {
      * When shutdown, the current actor will shut down all children actors first.
      *
      * @param actor the child actor
-     * @throws IllegalActorStateException if there is no current actor
-     *   or if the child actor was not created by the current actor
+     * @throws IllegalActorStateException if the child actor was not created by the current actor
      */
     void spawn(Actor<?> actor);
 
@@ -480,12 +491,16 @@ public final class Actor<B> {
     public void spawn(Actor<?> actor) {
       Objects.requireNonNull(actor);
       actor.checkOwner();
-      Objects.requireNonNull(actor.behaviorFactory, actor.name + " behavior is not defined");
-      var currentActor = currentActor();
-      // shutdown all children
-      var key = currentActor.addSignalHandler((__, handlerContext) -> handlerContext.signal(actor, ShutdownSignal.INSTANCE));
-      // remove the handler if the child is shutdown
-      actor.addSignalHandler((_1, _2) -> currentActor.removeSignalHandler(key));
+      if (actor.behaviorFactory == null) {
+        throw new IllegalActorStateException(actor.name + " behavior is not defined");
+      }
+      if (CURRENT_ACTOR.isBound()) {
+        var currentActor = CURRENT_ACTOR.get();
+        // shutdown all children
+        var key = currentActor.addSignalHandler((__, handlerContext) -> handlerContext.signal(actor, ShutdownSignal.INSTANCE));
+        // remove the handler if the child is shutdown
+        actor.addSignalHandler((_1, _2) -> currentActor.removeSignalHandler(key));
+      }
       startThread(this, actor);
     }
 
@@ -553,6 +568,16 @@ public final class Actor<B> {
    */
   public String name() {
     return name;
+  }
+
+  /**
+   * Returns the behavior type.
+   * @return the behavior type
+   * 
+   * {@link Actor#of(Class, String)}
+   */
+  public Class<B> behaviorType() {
+    return behaviorType;
   }
 
   @Override
@@ -705,7 +730,8 @@ public final class Actor<B> {
    * @throws IllegalActorStateException if the current thread is not the one that have created the actors
    *   if an actor is already running/shutdown or if an actor has no behavior
    */
-  public static void run(List<? extends Actor<?>> actors, Consumer<? super StartupContext> consumer) throws InterruptedException {
+  public static <X extends Exception> void run(List<? extends Actor<?>> actors, StartupConsumer<? extends X> consumer)
+      throws InterruptedException, X {
     Objects.requireNonNull(actors);
     Objects.requireNonNull(consumer);
     for(Actor<?> actor: actors) {
