@@ -74,8 +74,8 @@ import java.util.function.Function;
  * </pre>
  *
  * We may also want to spawn the actor "hello" dynamically, for that let's define two others actors,
- * the actor "manager" that will create an actor "hello" and the actor "callback" that will
- * receive the actor "hello" and call with a message "say".
+ * the actor "manager" that will create an actor "hello" dynamically and the actor "callback" that will
+ * receive as parameter the actor "hello" and call it with a message "say".
  * <pre>
  * record Manager(Context context) {
  *   public void createHello(Actor&lt;Callback&gt; callback) {
@@ -98,8 +98,8 @@ import java.util.function.Function;
  * </pre>
  *
  * In the method "createHello", we create the actor "hello", spawn it and calls the callback with the actor.
- * We also register with onSignal the fact that if the actor "manager" is shutdown, then the actor "callback"
- * should be shutdown too.
+ * We also register with {@link #onSignal(SignalHandler) onSignal(handler)} the fact that if the actor "manager"
+ * is shutdown, the actor "callback" should be shutdown too.
  * <pre>
  * var callback = Actor.of(Callback.class)
  *     .behavior(Callback::new);
