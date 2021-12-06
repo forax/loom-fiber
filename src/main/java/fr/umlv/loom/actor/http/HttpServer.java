@@ -14,6 +14,7 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.net.InetSocketAddress;
@@ -409,6 +410,9 @@ public class HttpServer {
   public HttpServer routes(Actor<?> actor) {
     Objects.requireNonNull(actor);
     for(var method: actor.behaviorType().getMethods()) {
+      if (Modifier.isStatic(method.getModifiers())) {
+        continue;
+      }
       var requestMapping = method.getAnnotation(RequestMapping.class);
       if (requestMapping == null) {
         continue;
