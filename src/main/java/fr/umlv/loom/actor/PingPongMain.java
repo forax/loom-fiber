@@ -1,58 +1,49 @@
 package fr.umlv.loom.actor;
 
+import fr.umlv.loom.actor.Actor.Context;
+
 import java.util.List;
 
 public class PingPongMain {
-  interface Ping {
-    void ping(int value);
-    void end();
+  record Ping(Context context, Actor<Pong> pongActor) {
+    public void ping(int value) {
+      //System.out.println("actor1 ping " + value);
+      if (value >= 10_000) {
+        context.postTo(pongActor, $ -> $.end(value));
+        return;
+      }
+      context.postTo(pongActor, $ -> $.pong(value + 1));
+    }
+
+    public void end() {
+      System.out.println(context.currentActor(Ping.class) + " end");
+      context.shutdown();
+    }
   }
 
-  interface Pong {
-    void pong(int value);
-    void end(int value);
+  record Pong(Context context, Actor<Ping> pingActor) {
+    public void pong(int value) {
+      //System.out.println("actor2 pong " + value);
+      context.postTo(pingActor, $ -> $.ping(value + 1));
+    }
+
+    public void end(int value) {
+      System.out.println("value " + value);
+      context.postTo(pingActor, Ping::end);
+      System.out.println(context.currentActor(Pong.class) + " end");
+      context.shutdown();
+    }
   }
 
   public static void main(String[] args) throws InterruptedException {
-    var actor1 = Actor.of(Ping.class);
-    var actor2 = Actor.of(Pong.class);
+    var pingActor = Actor.of(Ping.class);
+    var pongActor = Actor.of(Pong.class);
 
-    actor1.behavior(context -> new Ping() {
-      @Override
-      public void ping(int value) {
-        //System.out.println("actor1 ping " + value);
-        if (value >= 10_000) {
-          context.postTo(actor2, $ -> $.end(value));
-          return;
-        }
-        context.postTo(actor2, $ -> $.pong(value + 1));
-      }
+    pingActor.behavior(context -> new Ping(context, pongActor));
+    pongActor.behavior(context -> new Pong(context, pingActor));
 
-      @Override
-      public void end() {
-        System.out.println(actor1 + " end");
-        context.shutdown();
-      }
-    });
-
-    actor2.behavior(context -> new Pong() {
-      @Override
-      public void pong(int value) {
-        //System.out.println("actor2 pong " + value);
-        context.postTo(actor1, $ -> $.ping(value + 1));
-      }
-
-      @Override
-      public void end(int value) {
-        System.out.println("value " + value);
-        context.postTo(actor1, Ping::end);
-        System.out.println(actor2 + " end");
-        context.shutdown();
-      }
-    });
-
-    Actor.run(List.of(actor1, actor2), ctx -> {
-      ctx.postTo(actor1, $ -> $.ping(0));
+    Actor.run(List.of(pingActor, pongActor), ctx -> {
+      ctx.postTo(pingActor, $ -> $.ping(0));
     });
   }
 }

@@ -47,28 +47,20 @@ import java.util.function.Function;
  * </ol>
  *
  * The actor and its behavior are declared separately, {@link #of(Class, String)} creates an actor
- * with an interface describing all the messages.
+ * her with a record describing all the messages.
  * <pre>
- * interface Hello {
- *   void say(String message);
- *   void end();
- * }
- *
- * Actor&lt;Hello&gt; hello = Actor.of(Hello.class);
- * </pre>
- *
- * The method {@link #behavior(Function)} describes its behavior, i.e. how to react to the different messages.
- * The {@link Context} object provides the operations that an actor can do.
- * <pre>
- * hello.behavior(context -> new Hello() {
+ * record Hello(Context context) {
  *   public void say(String message) {
- *     System.out.println("Hello " + message);
+ *    System.out.println("Hello " + message);
  *   }
  *
  *   public void end() {
  *     context.shutdown();
  *   }
- * });
+ * }
+ *
+ * var hello = Actor.of(Hello.class);
+ * hello.behavior(Hello::new);
  * </pre>
  *
  * To run as a static configuration, the method {@link #run(List, StartupConsumer)} takes a list of
@@ -76,8 +68,8 @@ import java.util.function.Function;
  * to ask the actor "hello" to gently shutdown itself.
  * <pre>
  * Actor.run(List.of(hello), context -> {
- *   context.postTo(hello, $ -> $.say("actors using loom"));
- *   context.postTo(hello, $ -> $.end());
+ *     context.postTo(hello, $ -> $.say("actors using loom"));
+ *     context.postTo(hello, $ -> $.end());
  * });
  * </pre>
  *
@@ -85,46 +77,34 @@ import java.util.function.Function;
  * the actor "manager" that will create an actor "hello" and the actor "callback" that will
  * receive the actor "hello" and call with a message "say".
  * <pre>
- * interface Callback {
- *   void thisIsHello(Actor&lt;Hello&gt; hello);
- * }
- * interface Manager {
- *   void createHello(Actor&lt;Callback&gt; callback);
- *   void end();
- * }
- * </pre>
+ * record Manager(Context context) {
+ *   public void createHello(Actor<Callback> callback) {
+ *     var hello = Actor.of(Hello.class)
+ *           .behavior(Hello::new);
+ *     context.spawn(hello);
+ *     context.postTo(callback, $ -> $.callHello(hello));
+ *   }
  *
- * The "callback" is a simple actor that calls the actor "hello" with the message "say".
- * <pre>
- * var callback = Actor.of(Callback.class)
- *     .behavior(context -> new Callback() {
- *       public void thisIsHello(Actor&lt;Hello&gt; hello) {
- *         context.postTo(hello, $ -> $.say("actor using loom"));
- *       }
- *     });
+ *   public void end() {
+ *     context.shutdown();
+ *   }
+ * }
+ *
+ * record Callback(Context context) {
+ *   public void callHello(Actor<Hello> hello) {
+ *     context.postTo(hello, $ -> $.say("actor using loom"));
+ *   }
+ * }
  * </pre>
  *
  * In the method "createHello", we create the actor "hello", spawn it and calls the callback with the actor.
  * We also register with onSignal the fact that if the actor "manager" is shutdown, then the actor "callback"
  * should be shutdown too.
  * <pre>
+ * var callback = Actor.of(Callback.class)
+ *     .behavior(Callback::new);
  * var manager = Actor.of(Manager.class)
- *     .behavior(context -> new Manager() {
- *       public void createHello(Actor&lt;Callback&gt; callback) {
- *         var hello = Actor.of(Hello.class)
- *             .behavior(context -> new Hello() {
- *               public void say(String message) {
- *                 System.out.println("Hello " + message);
- *               }
- *             });
- *         context.spawn(hello);
- *         context.postTo(callback, $ -> $.thisIsHello(hello));
- *       }
- *
- *       public void end() {
- *         context.shutdown();
- *       }
- *     })
+ *     .behavior(Manager::new)
  *     .onSignal((signal, context) -> context.signal(callback, ShutdownSignal.INSTANCE));
  * </pre>
  *
@@ -133,8 +113,8 @@ import java.util.function.Function;
  * and the actor "callback" because we have registered a signal handler to shut down it.
  * <pre>
  * Actor.run(List.of(manager, callback), context -> {
- *   context.postTo(manager, $ -> $.createHello(callback));
- *   context.postTo(manager, $ -> $.end());
+ *     context.postTo(manager, $ -> $.createHello(callback));
+ *     context.postTo(manager, $ -> $.end());
  * });
  * </pre>
  *
@@ -458,13 +438,8 @@ public final class Actor<B> {
   }
 
   private static final class ContextImpl implements Context, StartupContext, HandlerContext {
-    @SuppressWarnings("unchecked")
     public <B> Actor<B> currentActor(Class<B> behaviorType) {
-      var actor = currentActor();
-      if (!behaviorType.isAssignableFrom(actor.behaviorType)) {
-        throw new IllegalActorStateException(actor.name + " does not allow behavior " + behaviorType.getName());
-      }
-      return (Actor<B>) actor;
+      return currentActor().asActor(behaviorType);
     }
 
     private Actor<?> currentActor() {
@@ -591,6 +566,15 @@ public final class Actor<B> {
    */
   public State state() {
     return state;
+  }
+
+  @SuppressWarnings("unchecked")
+  private <C> Actor<C> asActor(Class<C> behaviorType) {
+    Objects.requireNonNull(behaviorType);
+    if (!behaviorType.isAssignableFrom(this.behaviorType)) {
+      throw new IllegalActorStateException(name + " does not allow behavior " + behaviorType.getName());
+    }
+    return (Actor<C>) this;
   }
 
   private int addSignalHandler(SignalHandler signalHandler) {
