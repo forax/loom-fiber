@@ -46,8 +46,8 @@ import java.util.function.Function;
  *   {@link HandlerContext#signal(Actor, Signal) signal}.</li>
  * </ol>
  *
- * The actor and its behavior are declared separately, {@link #of(Class, String)} creates an actor
- * her with a record describing all the messages.
+ * The actor and its behavior are declared separately, {@link #of(Class, String)} creates an actor,
+ * here using a record describing all the messages.
  * <pre>
  * record Hello(Context context) {
  *   public void say(String message) {
@@ -64,7 +64,7 @@ import java.util.function.Function;
  * </pre>
  *
  * To run as a static configuration, the method {@link #run(List, StartupConsumer)} takes a list of
- * actors and start them. So when can send a message "say" to the actor "hello" and message "end"
+ * actors and start them. Here, we send a message "say" to the actor "hello" and message "end"
  * to ask the actor "hello" to gently shutdown itself.
  * <pre>
  * Actor.run(List.of(hello), context -> {
