@@ -78,7 +78,7 @@ import java.util.function.Function;
  * receive the actor "hello" and call with a message "say".
  * <pre>
  * record Manager(Context context) {
- *   public void createHello(Actor<Callback> callback) {
+ *   public void createHello(Actor&lt;Callback&gt; callback) {
  *     var hello = Actor.of(Hello.class)
  *           .behavior(Hello::new);
  *     context.spawn(hello);
@@ -91,7 +91,7 @@ import java.util.function.Function;
  * }
  *
  * record Callback(Context context) {
- *   public void callHello(Actor<Hello> hello) {
+ *   public void callHello(Actor&lt;Hello&gt; hello) {
  *     context.postTo(hello, $ -> $.say("actor using loom"));
  *   }
  * }
