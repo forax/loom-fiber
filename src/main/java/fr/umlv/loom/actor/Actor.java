@@ -46,8 +46,8 @@ import java.util.function.Function;
  *   {@link HandlerContext#signal(Actor, Signal) signal}.</li>
  * </ol>
  *
- * The actor and its behavior are declared separately, {@link #of(Class, String)} creates an actor,
- * here using a record describing all the messages.
+ * The actor and its behavior are declared separately. {@link #of(Class, String) Actor.of()} creates an actor,
+ * and {@link #behavior(Function) behavior(factory)} associates the behavior to an actor.
  * <pre>
  * record Hello(Context context) {
  *   public void say(String message) {
