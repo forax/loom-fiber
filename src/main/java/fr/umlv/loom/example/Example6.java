@@ -16,7 +16,7 @@ public class Example6 {
         Thread.sleep(1_000);
         return 101;
       }, shutdownOnFailure);
-      var future2 = executor.<Object,Integer>fork(() -> {
+      var future2 = executor.<Integer>fork(() -> {
         Thread.sleep(50);
         throw new RuntimeException("boom");
       }, shutdownOnFailure);
