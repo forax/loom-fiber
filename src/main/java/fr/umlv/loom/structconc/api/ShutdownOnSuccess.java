@@ -16,7 +16,7 @@ public class ShutdownOnSuccess<V, X extends Exception> {
   }
 
   public Future<V> fork(CallableWithException<V, X> task) {
-    return StructuredExecutorSPI.fork(executor, task::call, future -> shutdownOnSuccess.accept(executor, future));
+    return StructuredExecutorSPI.fork(executor, task::call, future -> shutdownOnSuccess.handle(executor, future));
   }
 
   public V race() throws InterruptedException, X {

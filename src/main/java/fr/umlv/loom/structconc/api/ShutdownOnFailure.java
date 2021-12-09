@@ -16,7 +16,7 @@ public class ShutdownOnFailure {
   }
 
   public <V> Future<V> fork(Callable<V> task) {
-    return StructuredExecutorSPI.fork(executor, task, future -> shutdownOnFailure.accept(executor, (Future<Object>) future));
+    return StructuredExecutorSPI.fork(executor, task, future -> shutdownOnFailure.handle(executor, (Future<Object>) future));
   }
 
   public void join() throws InterruptedException {
