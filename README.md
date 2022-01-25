@@ -14,6 +14,10 @@ set the environment variable JAVA_HOME to point to that JDK and then use Maven.
   mvn package
 ```
 
+### Gitpod support
+
+[![](https://gitpod.io/button/open-in-gitpod.svg)](https://gitpod.io/#https://github.com/forax/loom-fiber)
+
 ## Loom actor framework
 
 At some point of the history, this project was containing an actor system based on loom.
