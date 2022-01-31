@@ -1,12 +1,12 @@
 package fr.umlv.loom.example;
 
-import java.util.concurrent.StructuredExecutor;
+import java.util.concurrent.StructuredTaskScope;
 
 public class Example3 {
   // async calls with sleep, how virtual are mapped to carrier threads
   public static void main(String[] args) throws InterruptedException {
     var start = System.currentTimeMillis();
-    try(var executor = StructuredExecutor.open()) {
+    try(var executor = StructuredTaskScope.open()) {
       var future1 = executor.fork(() -> {
         System.out.println(Thread.currentThread());
         Thread.sleep(1_000);

@@ -1,14 +1,13 @@
 package fr.umlv.loom.example;
 
-import java.util.concurrent.Future;
 import java.util.concurrent.Future.State;
-import java.util.concurrent.StructuredExecutor;
+import java.util.concurrent.StructuredTaskScope;
 
 public class Example5 {
   // async calls + testing the future state
   public static void main(String[] args) throws InterruptedException {
     var start = System.currentTimeMillis();
-    try(var executor = StructuredExecutor.open()) {
+    try(var executor = StructuredTaskScope.open()) {
       var future1 = executor.fork(() -> {
         Thread.sleep(1_000);
         return 101;
@@ -18,7 +17,7 @@ public class Example5 {
         throw new RuntimeException("boom");
       });
       executor.join();
-      var sum = future1.state() == State.SUCCESS? future1.resultNow(): 0 +
+      var sum = (future1.state() == State.SUCCESS? future1.resultNow(): 0) +
           (future2.state() == State.SUCCESS? future2.resultNow(): 0);
       System.out.println("sum = " + sum);
     }

@@ -1,5 +1,6 @@
 package fr.umlv.loom.executor;
 
+/*
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
 import java.time.Duration;
@@ -225,3 +226,4 @@ public final class VirtualThreadExecutor implements ExecutorService {
     });
   }
 }
+*/

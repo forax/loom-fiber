@@ -1,7 +1,6 @@
 package fr.umlv.loom.proxy;
 
 import fr.umlv.loom.executor.UnsafeExecutors;
-import fr.umlv.loom.executor.VirtualThreadExecutor;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;

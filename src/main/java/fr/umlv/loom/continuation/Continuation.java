@@ -9,6 +9,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
+/*
 public class Continuation {
   private enum State { NEW, STARTED, TERMINATED }
 
@@ -114,3 +115,4 @@ public class Continuation {
     }
   }
 }
+ */
