@@ -7,4 +7,4 @@ FROM gitpod/workspace-full
 # More information: https://www.gitpod.io/docs/config-docker/
 
 # Install Java 19
-RUN bash -c ". /home/gitpod/.sdkman/bin/sdkman-init.sh && sdk install java 19.ea.1.lm-open"
+RUN bash -c ". /home/gitpod/.sdkman/bin/sdkman-init.sh && sdk install java 19.ea.2.lm-open"
