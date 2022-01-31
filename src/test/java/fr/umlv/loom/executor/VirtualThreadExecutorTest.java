@@ -1,5 +1,6 @@
 package fr.umlv.loom.executor;
 
+/*
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -212,3 +213,4 @@ public class VirtualThreadExecutorTest {
     executor.shutdown();
   }
 }
+ */

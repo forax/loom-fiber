@@ -1,13 +1,14 @@
 package fr.umlv.loom.example;
 
-import java.util.concurrent.StructuredExecutor;
+import java.util.concurrent.StructuredTaskScope;
 
 public class Example1 {
   // async call
   public static void main(String[] args) throws InterruptedException {
-    try(var executor = StructuredExecutor.open()) {
-      executor.execute(() -> System.out.println("hello"));
-      executor.join();
+    try(var scope = StructuredTaskScope.open()) {
+      var future = scope.fork(() -> "hello");
+      scope.join();
+      System.out.println(future.resultNow());
     }
   }
 }
