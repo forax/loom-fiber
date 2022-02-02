@@ -7,16 +7,16 @@ public class Example5 {
   // async calls + testing the future state
   public static void main(String[] args) throws InterruptedException {
     var start = System.currentTimeMillis();
-    try(var executor = StructuredTaskScope.open()) {
-      var future1 = executor.fork(() -> {
+    try(var scope = StructuredTaskScope.open()) {
+      var future1 = scope.fork(() -> {
         Thread.sleep(1_000);
         return 101;
       });
-      var future2 = executor.<Integer>fork(() -> {
+      var future2 = scope.<Integer>fork(() -> {
         Thread.sleep(50);
         throw new RuntimeException("boom");
       });
-      executor.join();
+      scope.join();
       var sum = (future1.state() == State.SUCCESS? future1.resultNow(): 0) +
           (future2.state() == State.SUCCESS? future2.resultNow(): 0);
       System.out.println("sum = " + sum);
