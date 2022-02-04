@@ -4,115 +4,72 @@ import fr.umlv.loom.executor.UnsafeExecutors;
 
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
-import java.util.Objects;
-import java.util.concurrent.Executor;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
-/*
 public class Continuation {
-  private enum State { NEW, STARTED, TERMINATED }
+  private enum State { NEW, RUNNING, WAITED, TERMINATED }
 
-  private static final VarHandle STATE, PREVIOUS_CONTINUATION;
+  private static final ScopeLocal<Continuation> CONTINUATION_SCOPE_LOCAL = ScopeLocal.newInstance();
+  private static final VarHandle STATE_VH;
   static {
-    var lookup = MethodHandles.lookup();
     try {
-      STATE = lookup.findVarHandle(Continuation.class, "state", State.class);
-      PREVIOUS_CONTINUATION = lookup.findVarHandle(Continuation.class, "previousContinuation", Continuation.class);
+      var lookup = MethodHandles.lookup();
+      STATE_VH = lookup.findVarHandle(Continuation.class, "state", State.class);
     } catch (NoSuchFieldException | IllegalAccessException e) {
       throw new AssertionError(e);
     }
   }
 
-  private static final ScopeLocal<Executor> EXECUTOR_LOCAL = ScopeLocal.newInstance();
-  private static final ScopeLocal<Continuation> CURRENT_CONTINUATION = ScopeLocal.newInstance();
   private final Runnable runnable;
-  private volatile State state;
-  private volatile Continuation previousContinuation;
-  private final ReentrantLock parkedLock = new ReentrantLock();
-  private final Condition parkedCondition = parkedLock.newCondition();
-  private boolean parked;
-
-  private Continuation(Runnable runnable, State state) {
-    this.runnable = runnable;
-    this.state = state;
-  }
+  private volatile State state = State.NEW;
+  private final ReentrantLock lock = new ReentrantLock();
+  private final Condition condition = lock.newCondition();
 
   public Continuation(Runnable runnable) {
-    this(Objects.requireNonNull(runnable, "runnable is null"), State.NEW);
-  }
-
-  public static void confine(Executor executor, Runnable runnable) {
-    ScopeLocal.where(EXECUTOR_LOCAL, executor, runnable);
+    this.runnable = runnable;
   }
 
   public void start() {
-    var state = this.state;
-    if (state == State.TERMINATED) {
-      throw new IllegalStateException("continuation done");
-    }
-    var currentContinuation = CURRENT_CONTINUATION.isBound()?
-        CURRENT_CONTINUATION.get():
-        new Continuation(null, null); // fake continuation
-    if (!PREVIOUS_CONTINUATION.compareAndSet(this, null, currentContinuation)) {
-      throw new IllegalStateException("continuation already running");
-    }
-    if (state == State.NEW && STATE.compareAndSet(this, State.NEW, State.STARTED)) {
-      var builder = Thread.ofVirtual();
-      if (EXECUTOR_LOCAL.isBound()) {
-        builder = UnsafeExecutors.configureBuilderExecutor(builder, EXECUTOR_LOCAL.get());
+    switch (state) {
+      case NEW -> {
+        if (!STATE_VH.compareAndSet(this, State.NEW, State.RUNNING)) {
+          throw new IllegalStateException();
+        }
+        var executor = UnsafeExecutors.virtualThreadExecutor(Runnable::run);
+        executor.execute(() -> {
+          ScopeLocal.where(CONTINUATION_SCOPE_LOCAL, this, runnable);
+          state = State.TERMINATED;
+        });
       }
-      builder.start(() -> {
-        ScopeLocal.where(CURRENT_CONTINUATION, this, runnable);
-        this.state = State.TERMINATED;
-        previousContinuation.unpark();
-        previousContinuation = null;
-      });
-      currentContinuation.park();
-      return;
+      case WAITED -> {
+        if (!STATE_VH.compareAndSet(this, State.WAITED, State.RUNNING)) {
+          throw new IllegalStateException();
+        }
+        lock.lock();
+        try {
+          condition.signal();
+        } finally {
+          lock.unlock();
+        }
+      }
+      case RUNNING, TERMINATED -> throw new IllegalStateException();
     }
-    this.unpark();
-    currentContinuation.park();
   }
 
   public static void yield() {
-    if (!CURRENT_CONTINUATION.isBound()) {
-      throw new IllegalStateException("no current continuation");
+    if (!CONTINUATION_SCOPE_LOCAL.isBound()) {
+      throw new IllegalStateException();
     }
-    var continuation = CURRENT_CONTINUATION.get();
-    continuation.previousContinuation.unpark();
-    continuation.previousContinuation = null;
-    continuation.park();
-  }
-
-  private void park() {
-    boolean interrupted = false;
-    parkedLock.lock();
+    var continuation = CONTINUATION_SCOPE_LOCAL.get();
+    continuation.lock.lock();
     try {
-      parked = true;
-      while(parked) {
-        try {
-          parkedCondition.await();
-        } catch (InterruptedException e) {
-          interrupted = true;
-        }
-      }
-    } finally {
-      parkedLock.unlock();
-    }
-    if (interrupted) {
+      continuation.state = State.WAITED;
+      continuation.condition.await();
+    } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
-    }
-  }
-
-  private void unpark() {
-    parkedLock.lock();
-    try {
-      parked = false;
-      parkedCondition.signal();
     } finally {
-      parkedLock.unlock();
+      continuation.lock.unlock();
     }
   }
 }
- */

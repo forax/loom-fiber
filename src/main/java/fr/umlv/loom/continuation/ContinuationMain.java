@@ -1,6 +1,5 @@
 package fr.umlv.loom.continuation;
 
-/*
 public class ContinuationMain {
   public static void main(String[] args) {
     var continuation = new Continuation(() -> {
@@ -20,4 +19,3 @@ public class ContinuationMain {
     System.out.println("back again again");
   }
 }
-*/

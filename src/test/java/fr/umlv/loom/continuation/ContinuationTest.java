@@ -6,8 +6,9 @@ import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.Executors;
 
 import static org.junit.jupiter.api.Assertions.*;
-/*
+
 public class ContinuationTest {
+
   @Test
   public void startAndYield() {
     var builder = new StringBuilder();
@@ -50,24 +51,6 @@ public class ContinuationTest {
   }
 
   @Test
-  public void confine() {
-    var carrierThreadNames = new CopyOnWriteArraySet<String>();
-    Continuation.confine(Executors.newSingleThreadExecutor(), () -> {
-      var continuation = new Continuation(() -> {
-        for(var i = 0; i < 10; i++) {
-          carrierThreadNames.add(carrierThreadName());
-          Continuation.yield();
-        }
-      });
-      continuation.start();
-      for(var i = 0; i < 10; i++) {
-        continuation.start();
-      }
-    });
-    assertEquals(1, carrierThreadNames.size());
-  }
-
-  @Test
   public void startWhenDone() {
     var continuation = new Continuation(() -> {});
     continuation.start();
@@ -79,4 +62,3 @@ public class ContinuationTest {
     assertThrows(IllegalStateException.class, Continuation::yield);
   }
 }
- */
