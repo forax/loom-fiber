@@ -2,8 +2,6 @@ package fr.umlv.loom.continuation;
 
 import fr.umlv.loom.executor.UnsafeExecutors;
 
-import java.lang.invoke.MethodHandles;
-import java.lang.invoke.VarHandle;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -11,31 +9,25 @@ public class Continuation {
   private enum State { NEW, RUNNING, WAITED, TERMINATED }
 
   private static final ScopeLocal<Continuation> CONTINUATION_SCOPE_LOCAL = ScopeLocal.newInstance();
-  private static final VarHandle STATE_VH;
-  static {
-    try {
-      var lookup = MethodHandles.lookup();
-      STATE_VH = lookup.findVarHandle(Continuation.class, "state", State.class);
-    } catch (NoSuchFieldException | IllegalAccessException e) {
-      throw new AssertionError(e);
-    }
-  }
 
   private final Runnable runnable;
-  private volatile State state = State.NEW;
+  private final Thread owner;
+  private State state = State.NEW;
   private final ReentrantLock lock = new ReentrantLock();
   private final Condition condition = lock.newCondition();
 
   public Continuation(Runnable runnable) {
     this.runnable = runnable;
+    this.owner = Thread.currentThread();
   }
 
   public void start() {
+    if (Thread.currentThread() != owner) {
+      throw new IllegalStateException();
+    }
     switch (state) {
       case NEW -> {
-        if (!STATE_VH.compareAndSet(this, State.NEW, State.RUNNING)) {
-          throw new IllegalStateException();
-        }
+        state = State.RUNNING;
         var executor = UnsafeExecutors.virtualThreadExecutor(Runnable::run);
         executor.execute(() -> {
           ScopeLocal.where(CONTINUATION_SCOPE_LOCAL, this, runnable);
@@ -43,9 +35,7 @@ public class Continuation {
         });
       }
       case WAITED -> {
-        if (!STATE_VH.compareAndSet(this, State.WAITED, State.RUNNING)) {
-          throw new IllegalStateException();
-        }
+        state = State.RUNNING;
         lock.lock();
         try {
           condition.signal();
