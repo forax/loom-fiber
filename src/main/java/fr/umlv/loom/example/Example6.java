@@ -2,14 +2,12 @@ package fr.umlv.loom.example;
 
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.StructuredTaskScope;
-import java.util.concurrent.StructuredTaskScope.ShutdownOnFailure;
 
 public class Example6 {
   // async calls + shutdownOnFailure
   public static void main(String[] args) throws InterruptedException, ExecutionException {
     var start = System.currentTimeMillis();
-    try(var completionPolicy = new ShutdownOnFailure();
-        var scope = StructuredTaskScope.open(completionPolicy)) {
+    try(var scope = new StructuredTaskScope.WithShutdownOnFailure()) {
       var future1 = scope.fork(() -> {
         Thread.sleep(1_000);
         return 101;
@@ -19,7 +17,7 @@ public class Example6 {
         throw new RuntimeException("boom");
       });
       scope.join();
-      completionPolicy.exception().ifPresentOrElse(Throwable::printStackTrace, () -> {
+      scope.exception().ifPresentOrElse(Throwable::printStackTrace, () -> {
         var sum = future1.resultNow() + future2.resultNow();
         System.out.println("sum = " + sum);
       });

@@ -7,7 +7,7 @@ public class Example5 {
   // async calls + testing the future state
   public static void main(String[] args) throws InterruptedException {
     var start = System.currentTimeMillis();
-    try(var scope = StructuredTaskScope.open()) {
+    try(var scope = new StructuredTaskScope<>()) {
       var future1 = scope.fork(() -> {
         Thread.sleep(1_000);
         return 101;

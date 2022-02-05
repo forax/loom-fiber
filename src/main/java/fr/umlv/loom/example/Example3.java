@@ -6,7 +6,7 @@ public class Example3 {
   // async calls with sleep, how virtual are mapped to carrier threads
   public static void main(String[] args) throws InterruptedException {
     var start = System.currentTimeMillis();
-    try(var scope = StructuredTaskScope.open()) {
+    try(var scope = new StructuredTaskScope<>()) {
       var future1 = scope.fork(() -> {
         System.out.println(Thread.currentThread());
         Thread.sleep(1_000);

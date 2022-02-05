@@ -5,7 +5,7 @@ import java.util.concurrent.StructuredTaskScope;
 public class Example2 {
   // async calls with a value
   public static void main(String[] args) throws InterruptedException {
-    try(var scope = StructuredTaskScope.open()) {
+    try(var scope = new StructuredTaskScope<>()) {
       var future1 = scope.fork(() -> {
         System.out.println(Thread.currentThread());
         return 40;
