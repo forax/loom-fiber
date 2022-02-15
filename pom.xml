@@ -39,7 +39,11 @@
                     <release>19</release>
                     <source>19</source>
                     <target>19</target>
-                    <compilerArgs>--enable-preview</compilerArgs>
+                    <compilerArgs>
+                        <arg>--enable-preview</arg>
+                        <arg>--add-modules</arg>
+                        <arg>jdk.incubator.concurrent</arg>
+                    </compilerArgs>
                 </configuration>
             </plugin>
             <plugin>
@@ -47,7 +51,7 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.0.0-M5</version>
                 <configuration>
-                    <argLine>--enable-preview</argLine>
+                    <argLine>--enable-preview --add-modules jdk.incubator.concurrent</argLine>
                 </configuration>
             </plugin>
         </plugins>

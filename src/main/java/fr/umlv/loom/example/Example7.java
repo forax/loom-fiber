@@ -1,13 +1,13 @@
 package fr.umlv.loom.example;
 
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.StructuredTaskScope;
+import jdk.incubator.concurrent.StructuredTaskScope;
 
 public class Example7 {
   // async calls + shutdownOnSuccess
   public static void main(String[] args) throws InterruptedException, ExecutionException {
     var start = System.currentTimeMillis();
-    try(var scope = new StructuredTaskScope.WithShutdownOnSuccess<Integer>()) {
+    try(var scope = new StructuredTaskScope.ShutdownOnSuccess<Integer>()) {
       var future1 = scope.fork(() -> {
         Thread.sleep(1_000);
         return 101;

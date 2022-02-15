@@ -1,6 +1,6 @@
 package fr.umlv.loom.example;
 
-import java.util.concurrent.StructuredTaskScope;
+import jdk.incubator.concurrent.StructuredTaskScope;
 
 public class Example4 {
   // async calls with exception

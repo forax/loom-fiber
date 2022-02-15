@@ -1,7 +1,7 @@
 package fr.umlv.loom.example;
 
 import java.util.concurrent.Future.State;
-import java.util.concurrent.StructuredTaskScope;
+import jdk.incubator.concurrent.StructuredTaskScope;
 
 public class Example5 {
   // async calls + testing the future state

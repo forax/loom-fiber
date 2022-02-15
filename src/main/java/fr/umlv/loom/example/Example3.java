@@ -1,6 +1,6 @@
 package fr.umlv.loom.example;
 
-import java.util.concurrent.StructuredTaskScope;
+import jdk.incubator.concurrent.StructuredTaskScope;
 
 public class Example3 {
   // async calls with sleep, how virtual are mapped to carrier threads

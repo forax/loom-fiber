@@ -1,6 +1,7 @@
 package fr.umlv.loom.continuation;
 
 import fr.umlv.loom.executor.UnsafeExecutors;
+import jdk.incubator.concurrent.ScopeLocal;
 
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
