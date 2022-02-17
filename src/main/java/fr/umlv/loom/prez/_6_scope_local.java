@@ -11,7 +11,7 @@ public class _6_scope_local {
 
   public static void main(String[] args) throws InterruptedException {
     var vthread = Thread.ofVirtual()
-        .allowSetThreadLocals(true)
+        .allowSetThreadLocals(false)
         .start(() -> {
 
       ScopeLocal.where(USER, "Bob", () -> {
