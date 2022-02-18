@@ -4,7 +4,7 @@ import jdk.incubator.concurrent.StructuredTaskScope;
 
 import java.util.concurrent.ExecutionException;
 
-// $JAVA_HOME/bin/java --enable-preview --add-modules jdk.incubator.concurrent -cp target/loom-1.0-SNAPSHOT.jar  fr.umlv.loom.prez._11_shutdown_on_success
+// $JAVA_HOME/bin/java --enable-preview --add-modules jdk.incubator.concurrent -cp target/loom-1.0-SNAPSHOT.jar  fr.umlv.loom.example._11_shutdown_on_success
 public interface _11_shutdown_on_success {
   static void main(String[] args) throws InterruptedException, ExecutionException {
     try (var scope = new StructuredTaskScope.ShutdownOnSuccess<Integer>()) {

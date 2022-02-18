@@ -2,7 +2,7 @@ package fr.umlv.loom.example;
 
 import jdk.incubator.concurrent.StructuredTaskScope;
 
-// $JAVA_HOME/bin/java --enable-preview --add-modules jdk.incubator.concurrent -cp target/loom-1.0-SNAPSHOT.jar  fr.umlv.loom.prez._9_structured_concurrency
+// $JAVA_HOME/bin/java --enable-preview --add-modules jdk.incubator.concurrent -cp target/loom-1.0-SNAPSHOT.jar  fr.umlv.loom.example._9_structured_concurrency
 public interface _9_structured_concurrency {
   private static void simple() throws InterruptedException {
     try (var scope = new StructuredTaskScope<>()) {

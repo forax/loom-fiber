@@ -1,6 +1,6 @@
 package fr.umlv.loom.example;
 
-// $JAVA_HOME/bin/java --enable-preview -cp target/loom-1.0-SNAPSHOT.jar  fr.umlv.loom.prez._1_starting_thread
+// $JAVA_HOME/bin/java --enable-preview -cp target/loom-1.0-SNAPSHOT.jar  fr.umlv.loom.example._1_starting_thread
 public interface _1_starting_thread {
   static void main(String[] args) throws InterruptedException {
     // platform threads
