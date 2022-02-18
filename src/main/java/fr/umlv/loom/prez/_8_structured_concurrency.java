@@ -8,11 +8,11 @@ public interface _8_structured_concurrency {
       var start = System.currentTimeMillis();
       var future1 = scope.fork(() -> {
         Thread.sleep(1_000);
-        return 42;
+        return 1;
       });
       var future2 = scope.fork(() -> {
         Thread.sleep(1_000);
-        return 100;
+        return 2;
       });
       scope.join();
       var end = System.currentTimeMillis();
@@ -27,12 +27,12 @@ public interface _8_structured_concurrency {
       var start = System.currentTimeMillis();
       var future1 = scope.fork(() -> {
         Thread.sleep(1_000);
-        return 42;
+        return 1;
       });
       var future2 = scope.fork(() -> {
         Thread.sleep(1_000);
         System.out.println("end");
-        return 100;
+        return 2;
       });
       scope.join();
       var end = System.currentTimeMillis();
@@ -52,7 +52,7 @@ public interface _8_structured_concurrency {
       var future2 = scope.fork(() -> {
         Thread.sleep(1_000);
         System.out.println("end");
-        return 42;
+        return 2;
       });
       scope.join();
       var end = System.currentTimeMillis();

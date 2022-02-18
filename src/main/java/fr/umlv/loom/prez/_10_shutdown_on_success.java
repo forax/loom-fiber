@@ -10,11 +10,11 @@ public interface _10_shutdown_on_success {
       var start = System.currentTimeMillis();
       var future1 = scope.fork(() -> {
         Thread.sleep(1_000);
-        return 42;
+        return 1;
       });
       var future2 = scope.fork(() -> {
         Thread.sleep(42);
-        return 100;
+        return 2;
       });
       scope.join();
       var end = System.currentTimeMillis();

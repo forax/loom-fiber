@@ -10,11 +10,11 @@ public interface _7_executor {
 
     var future1 = executor.submit(() -> {
       Thread.sleep(10);
-      return 42;
+      return 1;
     });
     var future2 = executor.submit(() -> {
       Thread.sleep(1_000);
-      return 100;
+      return 2;
     });
     executor.shutdown();
     var result = future1.get() + future2.get();
@@ -26,12 +26,12 @@ public interface _7_executor {
     var executor = Executors.newCachedThreadPool();
     var future1 = executor.submit(() -> {
       Thread.sleep(10);
-      return 42;
+      return 1;
     });
     var future2 = executor.submit(() -> {
       Thread.sleep(1_000);
       System.out.println("end");
-      return 100;
+      return 2;
     });
     executor.shutdown();
     //var result = future1.get() + future2.get();
@@ -48,7 +48,7 @@ public interface _7_executor {
     var future2 = executor.submit(() -> {
       Thread.sleep(1_000);
       System.out.println("end");
-      return 100;
+      return 2;
     });
     executor.shutdown();
     try {
