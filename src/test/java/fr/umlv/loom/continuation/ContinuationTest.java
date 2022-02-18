@@ -2,9 +2,6 @@ package fr.umlv.loom.continuation;
 
 import org.junit.jupiter.api.Test;
 
-import java.util.concurrent.CopyOnWriteArraySet;
-import java.util.concurrent.Executors;
-
 import static org.junit.jupiter.api.Assertions.*;
 
 public class ContinuationTest {
@@ -20,13 +17,13 @@ public class ContinuationTest {
       builder.append("continuation -- end\n");
     });
     builder.append("main -- before start\n");
-    continuation.start();
+    continuation.run();
     builder.append("main -- after start\n");
     builder.append("main -- before start 2\n");
-    continuation.start();
+    continuation.run();
     builder.append("main -- after start 2\n");
     builder.append("main -- before start 3\n");
-    continuation.start();
+    continuation.run();
     builder.append("main -- after start 3\n");
     assertEquals("""
         main -- before start
@@ -53,8 +50,8 @@ public class ContinuationTest {
   @Test
   public void startWhenDone() {
     var continuation = new Continuation(() -> {});
-    continuation.start();
-    assertThrows(IllegalStateException.class, continuation::start);
+    continuation.run();
+    assertThrows(IllegalStateException.class, continuation::run);
   }
 
   @Test

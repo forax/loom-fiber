@@ -22,7 +22,7 @@ public class Continuation {
     this.owner = Thread.currentThread();
   }
 
-  public void start() {
+  public void run() {
     if (Thread.currentThread() != owner) {
       throw new IllegalStateException();
     }

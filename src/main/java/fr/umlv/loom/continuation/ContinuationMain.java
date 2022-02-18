@@ -11,11 +11,11 @@ public class ContinuationMain {
     });
 
     System.out.println("start");
-    continuation.start();
+    continuation.run();
     System.out.println("came back");
-    continuation.start();
+    continuation.run();
     System.out.println("back again");
-    continuation.start();
+    continuation.run();
     System.out.println("back again again");
   }
 }
