@@ -1,4 +1,4 @@
-package fr.umlv.loom.prez;
+package fr.umlv.loom.example;
 
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;

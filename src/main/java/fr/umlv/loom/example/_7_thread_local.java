@@ -1,4 +1,4 @@
-package fr.umlv.loom.prez;
+package fr.umlv.loom.example;
 
 // $JAVA_HOME/bin/java -cp target/loom-1.0-SNAPSHOT.jar  fr.umlv.loom.prez._7_thread_local
 public class _7_thread_local {

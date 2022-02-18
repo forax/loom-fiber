@@ -1,4 +1,4 @@
-package fr.umlv.loom.prez;
+package fr.umlv.loom.example;
 
 import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CyclicBarrier;

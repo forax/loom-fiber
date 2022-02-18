@@ -1,4 +1,4 @@
-package fr.umlv.loom.prez;
+package fr.umlv.loom.example;
 
 import jdk.internal.vm.Continuation;
 import jdk.internal.vm.ContinuationScope;
