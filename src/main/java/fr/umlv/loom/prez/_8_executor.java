@@ -3,7 +3,8 @@ package fr.umlv.loom.prez;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 
-public interface _7_executor {
+// $JAVA_HOME/bin/java --enable-preview -cp target/loom-1.0-SNAPSHOT.jar  fr.umlv.loom.prez._8_executor
+public interface _8_executor {
   private static void simple() throws ExecutionException, InterruptedException {
     var executor = Executors.newCachedThreadPool();
     //var executor = Executors.newVirtualThreadPerTaskExecutor();

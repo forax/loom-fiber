@@ -2,7 +2,8 @@ package fr.umlv.loom.prez;
 
 import jdk.incubator.concurrent.StructuredTaskScope;
 
-public interface _9_future_state_and_shutdown {
+// $JAVA_HOME/bin/java --enable-preview --add-modules jdk.incubator.concurrent -cp target/loom-1.0-SNAPSHOT.jar  fr.umlv.loom.prez._10_future_state_and_shutdown
+public interface _10_future_state_and_shutdown {
   static void main(String[] args) throws InterruptedException {
     try (var scope = new StructuredTaskScope<>()) {
       var future = scope.fork(() -> {

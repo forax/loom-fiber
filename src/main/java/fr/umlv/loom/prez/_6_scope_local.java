@@ -2,6 +2,7 @@ package fr.umlv.loom.prez;
 
 import jdk.incubator.concurrent.ScopeLocal;
 
+// $JAVA_HOME/bin/java --enable-preview --add-modules jdk.incubator.concurrent -cp target/loom-1.0-SNAPSHOT.jar  fr.umlv.loom.prez._6_scope_local
 public class _6_scope_local {
   private static final ScopeLocal<String> USER = ScopeLocal.newInstance();
 

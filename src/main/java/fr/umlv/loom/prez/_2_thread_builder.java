@@ -1,5 +1,6 @@
 package fr.umlv.loom.prez;
 
+// $JAVA_HOME/bin/java --enable-preview -cp target/loom-1.0-SNAPSHOT.jar  fr.umlv.loom.prez._2_thread_builder
 public interface _2_thread_builder {
   static void main(String[] args) throws InterruptedException {
     // platform thread
