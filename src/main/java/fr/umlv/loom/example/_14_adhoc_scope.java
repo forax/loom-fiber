@@ -31,18 +31,20 @@ public interface _14_adhoc_scope {
     @Override
     public <U extends T> Future<U> fork(Callable<? extends U> task) {
       var future = super.fork(task);
-      var impl = new FutureTaskImpl<>(task);
+      @SuppressWarnings("unchecked")
+      var impl = new FutureTaskImpl<U>((Callable<U>)task);
       map.put(future, impl);
       return (Future<U>) impl;
     }
 
     @Override
     protected void handleComplete(Future<T> future) {
+      @SuppressWarnings("unchecked")
       var impl = (FutureTaskImpl<T>) map.remove(future);
       switch (future.state()) {
         case SUCCESS -> impl.set(future.resultNow());
         case FAILED -> impl.set(defaultValue);
-        case CANCELLED -> impl.cancel(true);
+        case CANCELLED -> impl.cancel(false);
         case RUNNING -> throw new AssertionError();
       }
     }
