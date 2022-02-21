@@ -7,6 +7,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -115,13 +116,14 @@ public interface  _13_http_server {
   static void main(String[] args) throws IOException {
     var executor = Executors.newVirtualThreadPerTaskExecutor();
     var localAddress = new InetSocketAddress(8080);
+    System.out.println("server at http://localhost:" + localAddress.getPort() + "/todo.html");
 
     var tasks = new CopyOnWriteArrayList<Task>();
 
     var server = HttpServer.create();
     server.setExecutor(executor);
     server.bind(localAddress, 0);
-    System.out.println("listen on " + localAddress);
+    server.createContext("/", exchange -> getStaticContent(exchange));
     server.createContext("/tasks", exchange -> {
       switch (exchange.getRequestMethod()) {
         case "GET" -> getTasks(exchange, tasks);
@@ -130,7 +132,6 @@ public interface  _13_http_server {
         default -> throw new IllegalStateException("unknown");
       }
     });
-    server.createContext("/", exchange -> getStaticContent(exchange));
     server.start();
   }
 }
