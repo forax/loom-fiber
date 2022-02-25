@@ -32,9 +32,9 @@ public interface _14_adhoc_scope {
     public <U extends T> Future<U> fork(Callable<? extends U> task) {
       var future = super.fork(task);
       @SuppressWarnings("unchecked")
-      var impl = new FutureTaskImpl<U>((Callable<U>)task);
+      var impl = new FutureTaskImpl<>((Callable<U>) task);
       map.put(future, impl);
-      return (Future<U>) impl;
+      return impl;
     }
 
     @Override
