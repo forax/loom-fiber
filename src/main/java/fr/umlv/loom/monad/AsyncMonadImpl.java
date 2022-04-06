@@ -63,7 +63,7 @@ record AsyncMonadImpl<R, E extends Exception>(
             } catch (ExecutionException e) {
               action.accept(handleException(e.getCause()));
             }
-          } catch (InterruptedException e) {
+          } catch (Exception e) {
             executorService.shutdownNow();
             throw rethrow(e);
           }
@@ -102,7 +102,7 @@ record AsyncMonadImpl<R, E extends Exception>(
             }
             index++;
             return true;
-          } catch (InterruptedException e) {
+          } catch (Exception e) {
             executorService.shutdownNow();
             throw rethrow(e);
           }

@@ -51,6 +51,25 @@ public interface AsyncMonadMain {
     System.out.println("withASetOfTasks " + list);
   }
 
+  static void simpleExample() throws InterruptedException {
+    int sum;
+    try(var asyncMonad = AsyncMonad.<Integer, RuntimeException>of(forker -> {
+      forker.fork(() -> {
+        System.out.println(Thread.currentThread());
+        Thread.sleep(500);
+        return 500;
+      });
+      forker.fork(() -> {
+        System.out.println(Thread.currentThread());
+        Thread.sleep(100);
+        return 100;
+      });
+    })) {
+      sum = asyncMonad.result(stream -> stream.mapToInt(v -> v).sum());
+    }
+    System.out.println("simpleExample " + sum);
+  }
+
   static void findAny() throws InterruptedException {
     int result;
     try(var asyncMonad = AsyncMonad.<Integer, RuntimeException>of(forker -> {
@@ -144,6 +163,8 @@ public interface AsyncMonadMain {
     withAListOfTasks();
 
     withASetOfTasks();
+
+    simpleExample();
 
     findAny();
 
