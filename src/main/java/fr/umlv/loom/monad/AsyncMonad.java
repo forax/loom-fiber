@@ -118,7 +118,9 @@ public interface AsyncMonad<R, E extends Exception> extends AutoCloseable {
   }
 
   /**
-   * Installs an exception handler to recover from the exception raised by the tasks.
+   * Installs an exception handler to recover from the checked exceptions raised by the tasks.
+   * This method can not intercept {@link RuntimeException} or {@link Error}
+   * those will stop the method {@link #result(Function)} to complete.
    * This method is an intermediary method that configure the async monad,
    * the handler will be used only when {@link #result(Function)} will be called.
    *
