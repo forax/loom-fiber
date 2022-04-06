@@ -7,7 +7,7 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 
 /**
- * Synchronous monadic API to execute asynchronous computations.
+ * A synchronous monadic API to execute asynchronous computations.
  *
  * <p>
  *   int sum;
