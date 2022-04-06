@@ -1,7 +1,9 @@
 package fr.umlv.loom.monad;
 
+import java.time.Instant;
 import java.util.Collection;
 import java.util.Spliterator;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Stream;
@@ -132,6 +134,46 @@ public interface AsyncMonad<R, E extends Exception> extends AutoCloseable {
   <F extends Exception> AsyncMonad<R,F> recover(ExceptionHandler<? super E, ? extends R, ? extends F> handler);
 
   /**
+   * Specify a deadline for the whole computation.
+   * @param deadline the timeout deadline
+   * @return a new async monad configured with the deadline specified
+   * 
+   * @see #result(Function)
+   * @see DeadlineException
+   */
+  AsyncMonad<R,E> deadline(Instant deadline);
+
+  /**
+   * Exception thrown if the {@link #deadline(Instant) deadline} is reached.
+   */
+  final class DeadlineException extends RuntimeException {
+    /**
+     * DeadlineException with a message.
+     * @param message the message of the exception
+     */
+    public DeadlineException(String message) {
+      super(message);
+    }
+
+    /**
+     * DeadlineException with a message and a cause.
+     * @param message the message of the exception
+     * @param cause the cause of the exception
+     */
+    public DeadlineException(String message, Throwable cause) {
+      super(message, cause);
+    }
+
+    /**
+     * DeadlineException with a cause.
+     * @param cause the cause of the exception
+     */
+    public DeadlineException(Throwable cause) {
+      super(cause);
+    }
+  }
+
+  /**
    * Propagates the result of the asynchronous tasks as a stream to process them.
    * This method may block if the stream requires elements that are not yet available.
    *
@@ -144,8 +186,9 @@ public interface AsyncMonad<R, E extends Exception> extends AutoCloseable {
    * @param <T> the type of the result
    * @throws E the type of the checked exception
    * @throws InterruptedException if the current thread or any threads doing a computation is interrupted
+   * @throws DeadlineException if the {@link #deadline(Instant) deadline} is reached
    */
-  <T> T result(Function<? super Stream<R>, T> streamMapper) throws E, InterruptedException;
+  <T> T result(Function<? super Stream<R>, T> streamMapper) throws E, DeadlineException, InterruptedException;
 
   /**
    * Closes the async monad and make sure that all the dangling asynchronous computations are cancelled

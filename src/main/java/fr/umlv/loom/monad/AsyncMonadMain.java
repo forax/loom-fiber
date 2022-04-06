@@ -1,15 +1,13 @@
 package fr.umlv.loom.monad;
 
+import fr.umlv.loom.monad.AsyncMonad.DeadlineException;
 import fr.umlv.loom.monad.AsyncMonad.Task;
 
 import java.io.IOException;
-import java.util.Collection;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
-import java.util.Spliterator;
-import java.util.function.Consumer;
-import java.util.function.Function;
 import java.util.stream.Stream;
 
 public interface AsyncMonadMain {
@@ -159,6 +157,23 @@ public interface AsyncMonadMain {
     System.out.println("recoverAnException " + result);
   }
 
+  static void deadlineException() throws InterruptedException, DeadlineException {
+    int result;
+    try(var asyncMonad = AsyncMonad.<Integer, RuntimeException>of(forker -> {
+      forker.fork(() -> {
+        System.out.println(Thread.currentThread());
+        Thread.sleep(1_000);
+        return 1_000;
+      });
+    })) {
+      result = asyncMonad
+          .deadline(Instant.now().plus(500, ChronoUnit.MILLIS))
+          .result(Stream::findFirst)
+          .orElseThrow();
+    }
+    System.out.println("timeoutException " + result);
+  }
+
   public static void main(String[] args) throws InterruptedException {
     withAListOfTasks();
 
@@ -180,6 +195,12 @@ public interface AsyncMonadMain {
       wrapAnException();
     } catch (MyException e) {
       System.out.println("wrapAnException exception ! " + e.getMessage());
+    }
+
+    try {
+      deadlineException();
+    } catch (DeadlineException e) {
+      System.out.println("deadlineException exception ! " + e.getMessage());
     }
   }
 }
