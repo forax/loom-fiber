@@ -197,6 +197,13 @@ record AsyncMonadImpl<R, E extends Exception>(
   public void close() {
     if (!executorService.isTerminated()) {
       executorService.shutdownNow();
+      try {
+        while(!executorService.awaitTermination(1, TimeUnit.DAYS)) {
+          // empty
+        }
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+      }
     }
   }
 }
