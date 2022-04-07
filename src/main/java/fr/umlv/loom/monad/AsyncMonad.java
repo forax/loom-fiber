@@ -29,7 +29,7 @@ import java.util.stream.Stream;
  * @param <R> type of task values
  * @param <E> type of the checked exception or {@link RuntimeException} otherwise
  */
-public interface AsyncMonad<R, E extends Exception> extends AutoCloseable {
+public sealed interface AsyncMonad<R, E extends Exception> extends AutoCloseable permits AsyncMonadImpl {
   /**
    * Task to execute.
    * @param <R> type of the return value
