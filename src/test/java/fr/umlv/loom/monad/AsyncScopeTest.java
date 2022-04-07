@@ -78,6 +78,18 @@ public class AsyncScopeTest {
   }
 
   @Test
+  public void unorderedFindFirst() throws Exception {
+    try(var scope = AsyncScope.unordered()) {
+      scope.fork(() -> {
+        Thread.sleep(200);
+        return 10;
+      });
+      scope.fork(() -> 20);
+      assertEquals(20, scope.result(Stream::findFirst).orElseThrow());
+    }
+  }
+
+  @Test
   public void unorderedShortcut() throws InterruptedException {
     var box = new Object() { boolean ok; };
     try(var scope = AsyncScope.<Integer, RuntimeException>unordered()) {
@@ -323,5 +335,22 @@ public class AsyncScopeTest {
       // do nothing
     }
     assertTrue(box.ok);
+  }
+
+  @Test
+  public void fullExample() throws InterruptedException {
+    List<Integer> list;
+    try(var scope = AsyncScope.<Integer, IOException>unordered()) {
+      scope.fork(() -> {
+        Thread.sleep(200);
+        throw new IOException("boom !");
+      });
+      scope.fork(() -> 666);
+      list = scope
+          .recover(ioException -> 333)
+          .deadline(Instant.now().plus(1, ChronoUnit.SECONDS))
+          .result(Stream::toList);
+    }
+    assertEquals(List.of(666, 333), list);
   }
 }
