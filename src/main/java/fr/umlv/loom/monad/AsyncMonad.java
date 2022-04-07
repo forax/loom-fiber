@@ -10,7 +10,7 @@ import java.util.stream.Stream;
 /**
  * A synchronous monadic API to execute asynchronous tasks.
  *
- * <p>
+ * <pre>
  *   int sum;
  *   try(var asyncMonad = AsyncMonad.&lt;Integer, RuntimeException&gt;of(forker -&gt; {
  *       forker.fork(() -&gt; {
@@ -24,7 +24,7 @@ import java.util.stream.Stream;
  *     })) {
  *       sum = asyncMonad.result(stream -> stream.mapToInt(v -> v).sum());
  *   }
- * </p>
+ * </pre>
  *
  * @param <R> type of task values
  * @param <E> type of the checked exception or {@link RuntimeException} otherwise
