@@ -3,7 +3,6 @@ package fr.umlv.loom.monad;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.Spliterator;
-import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Stream;
