@@ -7,8 +7,6 @@ import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.lang.invoke.MethodHandle;
-import java.lang.invoke.MethodHandles;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -19,7 +17,11 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static java.util.stream.IntStream.range;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 public class AsyncMonadTest {
   @Test
@@ -184,7 +186,7 @@ public class AsyncMonadTest {
   }
 
   @Test
-  public void recoverCanNotRecoverRuntimeExceptions() throws InterruptedException {
+  public void recoverCanNotRecoverRuntimeExceptions() {
     try(var asyncMonad = AsyncMonad.of(taskForker -> {
       taskForker.fork(() -> {
         throw new RuntimeException("boom !");
@@ -200,6 +202,15 @@ public class AsyncMonadTest {
   public void recoverPrecondition() {
     try(var asyncMonad = AsyncMonad.of(taskForker -> {})) {
       assertThrows(NullPointerException.class, () -> asyncMonad.recover(null));
+    }
+  }
+
+  @Test
+  public void recoverSpecifiedTwice() {
+    try(var asyncMonad = AsyncMonad.of(List.of())) {
+      assertThrows(IllegalStateException.class, () -> asyncMonad
+          .recover(exception -> null)
+          .recover(exception -> null));
     }
   }
 
@@ -291,6 +302,15 @@ public class AsyncMonadTest {
   }
 
   @Test
+  public void deadlineSpecifiedTwice() {
+    try(var asyncMonad = AsyncMonad.of(List.of())) {
+      assertThrows(IllegalStateException.class, () -> asyncMonad
+          .deadline(Instant.now())
+          .deadline(Instant.now()));
+    }
+  }
+
+  @Test
   public void result() throws InterruptedException {
     try(var asyncMonad = AsyncMonad.<Integer, RuntimeException>of(taskForker -> {
       taskForker.fork(() -> {
@@ -299,6 +319,15 @@ public class AsyncMonadTest {
       });
     })) {
       assertEquals(List.of(1), asyncMonad.result(Stream::toList));
+    }
+  }
+
+  @Test
+  public void resultWithNull() throws InterruptedException {
+    try(var asyncMonad = AsyncMonad.<Integer, RuntimeException>of(taskForker -> {
+      taskForker.fork(() -> null);
+    })) {
+      assertNull(asyncMonad.result(Stream::toList).get(0));
     }
   }
 
