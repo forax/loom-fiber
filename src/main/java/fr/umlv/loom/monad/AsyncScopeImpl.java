@@ -15,60 +15,80 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.UnaryOperator;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
-record AsyncMonadImpl<R, E extends Exception>(
+record AsyncScopeImpl<R, E extends Exception>(
     ExecutorService executorService,
     ExecutorCompletionService<R> completionService,
-    List<Future<R>> futures,
-    boolean ordered,
+    ArrayList<Future<R>> futures,
     ExceptionHandler<Exception, ? extends R, ? extends E> handler,
-    Instant deadline) implements AsyncMonad<R,E> {
+    Instant deadline
+    ) implements AsyncScope<R, E> {
+  final static class OptionBuilder<R, E extends Exception> implements Option<R, E> {
+    private boolean unordered;
+    private Instant deadline;
 
-  public static <R, E extends Exception> AsyncMonadImpl<R, E> of(Consumer<? super TaskForker<R, E>> taskForkerConsumer) {
-    Objects.requireNonNull(taskForkerConsumer, "taskForkerConsumer is null");
+    @Override
+    public Option<R, E> unordered() {
+      unordered = true;
+      return this;
+    }
+
+    @Override
+    public Option<R, E> deadline(Instant deadline) {
+      Objects.requireNonNull(deadline);
+      if (this.deadline != null) {
+        throw new IllegalStateException("deadline already set");
+      }
+      this.deadline = deadline;
+      return this;
+    }
+  }
+
+  public static <R, E extends Exception> AsyncScope<R,E> of(UnaryOperator<Option<R,E>> optionOperator) {
+    Objects.requireNonNull(optionOperator, "optionOperator is null");
+    var optionBuilder = (OptionBuilder<R, E>) optionOperator.apply(new OptionBuilder<>());
     var executorService = Executors.newVirtualThreadPerTaskExecutor();
-    var completionService = new ExecutorCompletionService<R>(executorService);
-    var futures = new ArrayList<Future<R>>();
-    taskForkerConsumer.accept((TaskForker<R, E>) task -> {
-      Objects.requireNonNull(task, "task is null");
-      futures.add(completionService.submit(task::compute));
-    });
-    executorService.shutdown();
-    return new AsyncMonadImpl<>(executorService, completionService, futures, true, null, null);
+    var completionService = optionBuilder.unordered?
+        new ExecutorCompletionService<R>(executorService): null;
+    return new AsyncScopeImpl<>(executorService, completionService, new ArrayList<>(), null, optionBuilder.deadline);
   }
 
   @Override
-  public AsyncMonad<R, E> unordered() {
-    return new AsyncMonadImpl<>(executorService, completionService, futures,false, handler, deadline);
+  public AsyncScope<R, E> fork(Task<? extends R, ? extends E> task) {
+    if (completionService != null) {
+      futures.add(completionService.submit(task::compute));
+    } else {
+      futures.add(executorService.submit(task::compute));
+    }
+    return this;
   }
 
   @Override
   @SuppressWarnings("unchecked")
-  public <F extends Exception> AsyncMonad<R, F> recover(ExceptionHandler<? super E, ? extends R, ? extends F> handler) {
-    Objects.requireNonNull(handler, "handler is null");
+  public <F extends Exception> AsyncScope<R, F> recover(ExceptionHandler<? super E, ? extends R, ? extends F> handler) {
+    Objects.requireNonNull(handler);
+    if (executorService.isShutdown()) {
+      throw new IllegalStateException("result already called");
+    }
     if (this.handler != null) {
-      throw new IllegalStateException("an exception handler is already set");
+      throw new IllegalStateException("handler already set");
     }
-    return new AsyncMonadImpl<>(executorService, completionService, futures, ordered, (ExceptionHandler<Exception, ? extends R, ? extends F>) handler, deadline);
-  }
-
-  @Override
-  public AsyncMonad<R, E> deadline(Instant deadline) {
-    Objects.requireNonNull(deadline, "deadline is null");
-    if (this.deadline != null) {
-      throw new IllegalStateException("a deadline is already set");
-    }
-    return new AsyncMonadImpl<>(executorService, completionService, futures, ordered, handler, deadline);
+    return new AsyncScopeImpl<>(executorService, completionService, futures, (ExceptionHandler<Exception, ? extends R, ? extends F>) handler, deadline);
   }
 
   @Override
   public <T> T result(Function<? super Stream<R>, T> streamMapper) throws E, DeadlineException, InterruptedException {
-    Objects.requireNonNull(streamMapper, "streamMapper is null");
-    var spliterator = ordered?
-      orderedSpliterator(executorService, futures, handler, deadline):
-      unorderedSpliterator(executorService, completionService, futures, handler, deadline);
+    if (executorService.isShutdown()) {
+      throw new IllegalStateException("result already called");
+    }
+    executorService.shutdown();
+
+    var spliterator = completionService == null?
+        orderedSpliterator(executorService, futures, handler, deadline):
+        unorderedSpliterator(executorService, completionService, futures, handler, deadline);
     var stream = StreamSupport.stream(spliterator, false);
     return streamMapper.apply(stream);
   }
@@ -89,7 +109,7 @@ record AsyncMonadImpl<R, E extends Exception>(
 
 
   // Utilities
-  // this code is duplicated in AsyncScopeImpl
+  // this code is duplicated in AsyncMonadImpl
 
   private static <R, E extends Exception> Spliterator<R> orderedSpliterator(ExecutorService executorService, List<Future<R>> futures, ExceptionHandler<Exception, ? extends R, ? extends E> handler, Instant deadline) {
     return new Spliterator<>() {
