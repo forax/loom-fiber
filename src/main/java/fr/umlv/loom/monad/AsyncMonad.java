@@ -9,7 +9,7 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 
 /**
- * A synchronous monadic API to execute asynchronous computations.
+ * A synchronous monadic API to execute asynchronous tasks.
  *
  * <p>
  *   int sum;
@@ -47,7 +47,7 @@ public interface AsyncMonad<R, E extends Exception> extends AutoCloseable {
   }
 
   /**
-   * Object able to spawn a task asynchronously
+   * Spawn a task asynchronously
    * @param <R> type of the result of a computation
    * @param <E> type of the checked exception or {@link RuntimeException} otherwise
    */
@@ -61,8 +61,8 @@ public interface AsyncMonad<R, E extends Exception> extends AutoCloseable {
 
   /**
    * Creates an async monad by spawning several tasks.
-   * This async monad tracks the order of the spawned tasks so the {@link #result(Function)}s will be
-   * processed in order.
+   * This async monad tracks the order of the spawned tasks so the {@link #result(Function)}s of
+   * the asynchronous tasks are processed in order.
    *
    * @param taskForkerConsumer a consumer of {@link TaskForker}
    * @return a newly created async monad
@@ -85,12 +85,12 @@ public interface AsyncMonad<R, E extends Exception> extends AutoCloseable {
    * @see #unordered()
    */
   static <R, E extends Exception> AsyncMonad<R,E> of(Collection<? extends Task<R, E>> tasks) {
+    var isOrdered = tasks.spliterator().hasCharacteristics(Spliterator.ORDERED);
     var asyncMonad = AsyncMonad.<R, E>of(consumer -> {
       for (var task : tasks) {
         consumer.fork(task);
       }
     });
-    var isOrdered = tasks.spliterator().hasCharacteristics(Spliterator.ORDERED);
     return isOrdered? asyncMonad: asyncMonad.unordered();
   }
 
@@ -104,16 +104,16 @@ public interface AsyncMonad<R, E extends Exception> extends AutoCloseable {
   AsyncMonad<R,E> unordered();
 
   /**
-   * An exception handler
+   * A handler of checked exception.
    * @param <E> type of the exception raised by the tasks
    * @param <R> type of the result of a task
-   * @param <F> type of a new exception if the exceptions raside by a task is wrapped
+   * @param <F> type of new exception if a new exception is raised, {@link RuntimeException} otherwise
    */
   interface ExceptionHandler<E extends Exception, R, F extends Exception> {
     /**
-     * Called to react to an exception
-     * @param exception the exception raised by a task
-     * @return the value used to swallow the exception
+     * Called to react to a checked exception
+     * @param exception the checked exception raised by a task
+     * @return the value that is used as result instead of the exception
      * @throws F the new exception raised
      */
     R handle(E exception) throws F;
@@ -128,15 +128,17 @@ public interface AsyncMonad<R, E extends Exception> extends AutoCloseable {
    *
    * @param handler the exception handler
    * @return a new async monad with the exception handler configured
-   * @param <F> the type of a new exception if the exception raised by a task is wrapped
+   * @param <F> the type of the new exception if the exception raised by a task is wrapped
    * @throws IllegalStateException if an exception handler is already configured
    */
   <F extends Exception> AsyncMonad<R,F> recover(ExceptionHandler<? super E, ? extends R, ? extends F> handler);
 
   /**
    * Specify a deadline for the whole computation.
+   * If the deadline time is less than the current time, the deadline is ignored.
    * @param deadline the timeout deadline
    * @return a new async monad configured with the deadline specified
+   * @throws IllegalStateException if a deadline is already configured
    * 
    * @see #result(Function)
    * @see DeadlineException
@@ -182,16 +184,16 @@ public interface AsyncMonad<R, E extends Exception> extends AutoCloseable {
    * for the stream computation.
    *
    * @param streamMapper function called with a stream to return the result of the whole computation
-   * @return a result
+   * @return the result of the whole computation
    * @param <T> the type of the result
-   * @throws E the type of the checked exception
-   * @throws InterruptedException if the current thread or any threads doing a computation is interrupted
+   * @throws E the type of the checked exception, {@link RuntimeException} otherwise
+   * @throws InterruptedException if the current thread or any threads running a task is interrupted
    * @throws DeadlineException if the {@link #deadline(Instant) deadline} is reached
    */
   <T> T result(Function<? super Stream<R>, T> streamMapper) throws E, DeadlineException, InterruptedException;
 
   /**
-   * Closes the async monad and make sure that all the dangling asynchronous computations are cancelled
+   * Closes the async monad and make sure that any dangling asynchronous tasks are cancelled
    * if necessary.
    */
   @Override
