@@ -15,7 +15,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 import java.util.function.Function;
-import java.util.function.UnaryOperator;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -26,38 +25,18 @@ record AsyncScopeImpl<R, E extends Exception>(
     ExceptionHandler<Exception, ? extends R, ? extends E> handler,
     Instant deadline
     ) implements AsyncScope<R, E> {
-  final static class OptionBuilder<R, E extends Exception> implements Option<R, E> {
-    private boolean unordered;
-    private Instant deadline;
 
-    @Override
-    public Option<R, E> unordered() {
-      unordered = true;
-      return this;
-    }
-
-    @Override
-    public Option<R, E> deadline(Instant deadline) {
-      Objects.requireNonNull(deadline);
-      if (this.deadline != null) {
-        throw new IllegalStateException("deadline already set");
-      }
-      this.deadline = deadline;
-      return this;
-    }
-  }
-
-  public static <R, E extends Exception> AsyncScope<R,E> of(UnaryOperator<Option<R,E>> optionOperator) {
-    Objects.requireNonNull(optionOperator, "optionOperator is null");
-    var optionBuilder = (OptionBuilder<R, E>) optionOperator.apply(new OptionBuilder<>());
+  public static <R, E extends Exception> AsyncScope<R,E> of(boolean ordered) {
     var executorService = Executors.newVirtualThreadPerTaskExecutor();
-    var completionService = optionBuilder.unordered?
-        new ExecutorCompletionService<R>(executorService): null;
-    return new AsyncScopeImpl<>(executorService, completionService, new ArrayList<>(), null, optionBuilder.deadline);
+    var completionService = ordered? null: new ExecutorCompletionService<R>(executorService);
+    return new AsyncScopeImpl<>(executorService, completionService, new ArrayList<>(), null, null);
   }
 
   @Override
   public AsyncScope<R, E> fork(Task<? extends R, ? extends E> task) {
+    if (executorService.isShutdown()) {
+      throw new IllegalStateException("result already called");
+    }
     if (completionService != null) {
       futures.add(completionService.submit(task::compute));
     } else {
@@ -77,6 +56,18 @@ record AsyncScopeImpl<R, E extends Exception>(
       throw new IllegalStateException("handler already set");
     }
     return new AsyncScopeImpl<>(executorService, completionService, futures, (ExceptionHandler<Exception, ? extends R, ? extends F>) handler, deadline);
+  }
+
+  @Override
+  public AsyncScope<R, E> deadline(Instant deadline) {
+    Objects.requireNonNull(deadline);
+    if (executorService.isShutdown()) {
+      throw new IllegalStateException("result already called");
+    }
+    if (this.deadline != null) {
+      throw new IllegalStateException("deadline already set");
+    }
+    return new AsyncScopeImpl<>(executorService, completionService, futures, handler, deadline);
   }
 
   @Override

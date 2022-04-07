@@ -2,19 +2,18 @@ package fr.umlv.loom.monad;
 
 import java.time.Instant;
 import java.util.function.Function;
-import java.util.function.UnaryOperator;
 import java.util.stream.Stream;
 
 /**
  * A scope to execute asynchronous tasks in way that appears to be synchronous.
  *
- * The API is separated into 3 different phases
+ * The API is separated into 4 different phases
  * <ol>
- *   <li>Create the async scope with {@link AsyncScope#of(UnaryOperator)} using the option
- *       {@link Option#unordered()} or {@link Option#deadline(Instant)}. The convenient method
- *       {@link AsyncScope#of()} can be used if there are no option.
+ *   <li>Create the async scope with either {@link AsyncScope#of()} or
+ *       if you don't care about the order with {@link AsyncScope#unordered()}.
+ *   <li>Spawn task using {@link #fork(Task)}
  *   <li>Optionally configure how to react to checked exception using
- *        {@link AsyncScope#recover(ExceptionHandler)}
+ *        {@link AsyncScope#recover(ExceptionHandler)} or set a deadline with {@link #deadline(Instant)}.
  *   <li>Gather the results of the tasks with
  *       {@link AsyncScope#result(Function)}.
  * </ol>
@@ -23,7 +22,7 @@ import java.util.stream.Stream;
  * to get the results. Thus, the results are available in order, exceptions are propagated as
  * usual and if an exception occurs it cancels all the remaining tasks.
  *
- * The method {@link Option#unordered()} relax the ordering constraint allowing the results to be processed
+ * The method {@link #unordered()} relax the ordering constraint allowing the results to be processed
  * as soon as they are available. The method {@link #recover(ExceptionHandler)} relax the exception constraint
  * for checked exceptions (exceptions that are not subclasses of {@link RuntimeException})
  * by providing a way to either substitute a value to the exception or wrap the exception into another
@@ -39,14 +38,12 @@ import java.util.stream.Stream;
  *   }
  * </pre>
  *
- * and an example using the option {@link Option#unordered()}
+ * and an example using {@link #unordered()}
  * <pre>
  *   List&lt;Integer&gt; list;
- *   try(var scope = AsyncScope.&lt;Integer, RuntimeException&gt;of(opt -> opt
- *            .unordered()
- *   )) {
+ *   try(var scope = AsyncScope.&lt;Integer, RuntimeException&gt;unordered()) {
  *       scope.fork(() -&gt; {
- *         Thread.sleep(1_000);
+ *         Thread.sleep(200);
  *         return 10;
  *       });
  *       scope.fork(() -&gt; 20);
@@ -66,43 +63,17 @@ public sealed interface AsyncScope<R, E extends Exception> extends AutoCloseable
    * @param <E> type of the checked exception or {@link RuntimeException} otherwise
    */
   static <R, E extends Exception> AsyncScope<R,E> of() {
-    return of(option -> option);
+    return AsyncScopeImpl.of(true);
   }
 
   /**
-   * Creates an async scope with options.
+   * Creates an async scope that receive the result of tasks out of order.
    *
    * @param <R> type of task values
    * @param <E> type of the checked exception or {@link RuntimeException} otherwise
    */
-  static <R, E extends Exception> AsyncScope<R,E> of(UnaryOperator<Option<R, E>> optionOperator) {
-    return AsyncScopeImpl.of(optionOperator);
-  }
-
-  /**
-   * Spawn a task asynchronously
-   * @param <R> type of the result of a computation
-   * @param <E> type of the checked exception or {@link RuntimeException} otherwise
-   */
-  sealed interface Option<R, E extends Exception> permits AsyncScopeImpl.OptionBuilder {
-    /**
-     * Configures the async scope to forget the order, the first results will be the ones of
-     * the tasks that finish firsts.
-     * @return the configured option
-     */
-    Option<R,E> unordered();
-
-    /**
-     * Configures a deadline for the whole computation.
-     * If the deadline time is less than the current time, the deadline is ignored.
-     * @param deadline the timeout deadline
-     * @return the configured option
-     * @throws IllegalStateException if a deadline is already configured
-     *
-     * @see #result(Function)
-     * @see DeadlineException
-     */
-    Option<R,E> deadline(Instant deadline);
+  static <R, E extends Exception> AsyncScope<R,E> unordered() {
+    return AsyncScopeImpl.of(false);
   }
 
   /**
@@ -159,7 +130,7 @@ public sealed interface AsyncScope<R, E extends Exception> extends AutoCloseable
   <F extends Exception> AsyncScope<R,F> recover(ExceptionHandler<? super E, ? extends R, ? extends F> handler);
 
   /**
-   * Exception thrown if the {@link Option#deadline(Instant) deadline} is reached.
+   * Exception thrown if the {@link #deadline(Instant) deadline} is reached.
    */
   final class DeadlineException extends RuntimeException {
     /**
@@ -189,6 +160,18 @@ public sealed interface AsyncScope<R, E extends Exception> extends AutoCloseable
   }
 
   /**
+   * Configures a deadline for the whole computation.
+   * If the deadline time is less than the current time, the deadline is ignored.
+   * @param deadline the timeout deadline
+   * @return the configured option
+   * @throws IllegalStateException if a deadline is already configured
+   *
+   * @see #result(Function)
+   * @see DeadlineException
+   */
+  AsyncScope<R,E> deadline(Instant deadline);
+
+  /**
    * Propagates the results of the asynchronous tasks as a stream to process them.
    * This method may block if the stream requires elements that are not yet available.
    *
@@ -201,13 +184,14 @@ public sealed interface AsyncScope<R, E extends Exception> extends AutoCloseable
    * @param <T> the type of the result
    * @throws E the type of the checked exception, {@link RuntimeException} otherwise
    * @throws InterruptedException if the current thread or any threads running a task is interrupted
-   * @throws DeadlineException if the {@link Option#deadline(Instant) deadline} is reached
+   * @throws DeadlineException if the {@link #deadline(Instant) deadline} is reached
    */
   <T> T result(Function<? super Stream<R>, T> streamMapper) throws E, DeadlineException, InterruptedException;
 
   /**
    * Closes the async monad and make sure that any dangling asynchronous tasks are cancelled
    * if necessary.
+   * This method is idempotent.
    */
   @Override
   void close();

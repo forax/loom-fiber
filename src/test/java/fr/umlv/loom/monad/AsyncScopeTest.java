@@ -1,7 +1,6 @@
 package fr.umlv.loom.monad;
 
 import fr.umlv.loom.monad.AsyncScope.DeadlineException;
-import fr.umlv.loom.monad.AsyncScope.Option;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -28,7 +27,16 @@ public class AsyncScopeTest {
   }
 
   @Test
-  public void ofForkSeveralTasks() throws InterruptedException {
+  public void simple() throws Exception {
+    try(var scope = AsyncScope.of()) {
+      scope.fork(() -> 10);
+      scope.fork(() -> 20);
+      assertEquals(List.of(10, 20), scope.result(Stream::toList));
+    }
+  }
+
+  @Test
+  public void ofSeveralTasks() throws InterruptedException {
     try(var scope = AsyncScope.<Integer, RuntimeException>of()) {
       range(0, 10_000).forEach(i -> scope.fork(() -> i));
       assertEquals(49_995_000, (int) scope.result(stream -> stream.mapToInt(v -> v).sum()));
@@ -36,7 +44,7 @@ public class AsyncScopeTest {
   }
 
   @Test
-  public void ofForkEmpty() throws Exception {
+  public void ofEmpty() throws Exception {
     try(var scope = AsyncScope.of()) {
       scope.result(stream -> stream.peek(__ -> fail()).findFirst());
     }
@@ -44,7 +52,7 @@ public class AsyncScopeTest {
 
   @Test
   public void unordered() throws InterruptedException {
-    try(var scope = AsyncScope.<Integer, RuntimeException>of(Option::unordered)) {
+    try(var scope = AsyncScope.<Integer, RuntimeException>unordered()) {
       scope.fork(() -> {
         Thread.sleep(500);
         return 500;
@@ -58,9 +66,21 @@ public class AsyncScopeTest {
   }
 
   @Test
+  public void unorderedSimple() throws Exception {
+    try(var scope = AsyncScope.unordered()) {
+      scope.fork(() -> {
+        Thread.sleep(200);
+        return 10;
+      });
+      scope.fork(() -> 20);
+      assertEquals(List.of(20, 10), scope.result(Stream::toList));
+    }
+  }
+
+  @Test
   public void unorderedShortcut() throws InterruptedException {
     var box = new Object() { boolean ok; };
-    try(var scope = AsyncScope.<Integer, RuntimeException>of(Option::unordered)) {
+    try(var scope = AsyncScope.<Integer, RuntimeException>unordered()) {
       scope.fork(() -> {
         try {
           Thread.sleep(1_000);
@@ -77,6 +97,21 @@ public class AsyncScopeTest {
       assertEquals(1, scope.result(Stream::findFirst).orElseThrow());
     }
     assertTrue(box.ok);
+  }
+
+  @Test
+  public void unorderedEmpty() throws Exception {
+    try(var scope = AsyncScope.unordered()) {
+      scope.result(stream -> stream.peek(__ -> fail()).findFirst());
+    }
+  }
+
+  @Test
+  public void forkCalledAterResult() throws Exception {
+    try(var scope = AsyncScope.of()) {
+      scope.result(__ -> null);
+      assertThrows(IllegalStateException.class, () -> scope.fork(() -> null));
+    }
   }
 
   @Test
@@ -133,64 +168,86 @@ public class AsyncScopeTest {
   }
 
   @Test
+  public void recoverCalledAfterResult() throws Exception {
+    try(var scope = AsyncScope.of()) {
+      scope.result(__ -> null);
+      assertThrows(IllegalStateException.class, () -> scope.recover(__ -> null));
+    }
+  }
+
+  @Test
   public void deadline() {
-    try(var scope = AsyncScope.<Integer, RuntimeException>of(option -> option
-            .deadline(Instant.now().plus(100, ChronoUnit.MILLIS)))) {
+    try(var scope = AsyncScope.<Integer, RuntimeException>unordered()) {
       scope.fork(() -> {
         Thread.sleep(5_000);
         throw new AssertionError("fail !");
       });
-      assertThrows(DeadlineException.class, () -> scope.result(stream -> stream.peek(__ -> fail()).toList()));
+      assertThrows(DeadlineException.class, () -> scope
+          .deadline(Instant.now().plus(100, ChronoUnit.MILLIS))
+          .result(stream -> stream.peek(__ -> fail()).toList()));
     }
   }
 
   @Test
   public void deadlineLongDeadline() throws InterruptedException {
-    try(var scope = AsyncScope.<Integer, RuntimeException>of(option -> option
-            .deadline(Instant.now().plus(1_000, ChronoUnit.MILLIS)))) {
+    try(var scope = AsyncScope.<Integer, RuntimeException>unordered()) {
       scope.fork(() -> {
         Thread.sleep(1);
         return 1;
       });
-      assertEquals(1, scope.result(Stream::findFirst).orElseThrow());
+      assertEquals(1, scope
+          .deadline(Instant.now().plus(1_000, ChronoUnit.MILLIS))
+          .result(Stream::findFirst).orElseThrow());
     }
   }
   @Test
   public void deadlineUnordered() {
-    try(var scope = AsyncScope.of(option -> option
-            .unordered()
-            .deadline(Instant.now().plus(100, ChronoUnit.MILLIS)))) {
+    try(var scope = AsyncScope.unordered()) {
       scope.fork(() -> {
         Thread.sleep(5_000);
         throw new AssertionError("fail !");
       });
-      assertThrows(DeadlineException.class, () -> scope.result(stream -> stream.peek(__ -> fail()).toList()));
+      assertThrows(DeadlineException.class, () -> scope
+          .deadline(Instant.now().plus(100, ChronoUnit.MILLIS))
+          .result(stream -> stream.peek(__ -> fail()).toList()));
     }
   }
 
   @Test
   public void deadlineUnorderedLongDeadline() throws InterruptedException {
-    try(var scope = AsyncScope.<Integer, RuntimeException>of(option -> option
-        .unordered()
-        .deadline(Instant.now().plus(1_000, ChronoUnit.MILLIS)))) {
+    try(var scope = AsyncScope.<Integer, RuntimeException>unordered()) {
       scope.fork(() -> {
         Thread.sleep(1);
         return 1;
       });
-      assertEquals(1,scope.result(Stream::findFirst).orElseThrow());
+      assertEquals(1,scope
+          .deadline(Instant.now().plus(1_000, ChronoUnit.MILLIS))
+          .result(Stream::findFirst).orElseThrow());
     }
   }
 
   @Test
   public void deadlinePrecondition() {
-    assertThrows(NullPointerException.class, () -> AsyncScope.of(option -> option.deadline(null)));
+    try(var scope = AsyncScope.of()) {
+      assertThrows(NullPointerException.class, () -> scope.deadline(null));
+    }
   }
 
   @Test
   public void deadlineSpecifiedTwice() {
-    assertThrows(IllegalStateException.class, () -> AsyncScope.of(option -> option
+    try(var scope = AsyncScope.of()) {
+      assertThrows(IllegalStateException.class, () -> scope
           .deadline(Instant.now())
-          .deadline(Instant.now())));
+          .deadline(Instant.now()));
+    }
+  }
+
+  @Test
+  public void deadlineCalledAfterResult() throws Exception {
+    try(var scope = AsyncScope.of()) {
+      scope.result(__ -> null);
+      assertThrows(IllegalStateException.class, () -> scope.deadline(Instant.now()));
+    }
   }
 
   @Test
@@ -238,6 +295,14 @@ public class AsyncScopeTest {
   public void resultPrecondition() {
     try(var scope = AsyncScope.of()) {
       assertThrows(NullPointerException.class, () -> scope.result(null));
+    }
+  }
+
+  @Test
+  public void resultCalledAfterResult() throws Exception {
+    try(var scope = AsyncScope.of()) {
+      scope.result(__ -> null);
+      assertThrows(IllegalStateException.class, () -> scope.result(__ -> null));
     }
   }
 
