@@ -7,6 +7,8 @@ import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -178,6 +180,19 @@ public class AsyncMonadTest {
       assertEquals(42, (int) asyncMonad
           .recover(exception -> 41)
           .result(stream -> stream.mapToInt(v -> v).sum()));
+    }
+  }
+
+  @Test
+  public void recoverCanNotRecoverRuntimeExceptions() throws InterruptedException {
+    try(var asyncMonad = AsyncMonad.of(taskForker -> {
+      taskForker.fork(() -> {
+        throw new RuntimeException("boom !");
+      });
+    })) {
+      assertThrows(RuntimeException.class, () ->  asyncMonad
+          .recover(exception -> fail())  // should not be called
+          .result(stream -> stream.peek(__ -> fail()).findFirst()));
     }
   }
 
