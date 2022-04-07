@@ -10,6 +10,18 @@ import java.util.stream.Stream;
 /**
  * A synchronous monadic API to execute asynchronous tasks.
  *
+ * The API is separated into 3 different phases
+ * <ol>
+ *   <li>Creating the async monad and spawning the tasks with
+ *       {@link AsyncMonad#of(Consumer)} or its convenient alternative {@link AsyncMonad#of(Collection)}
+ *   <li>Configuring the async monad semantics with
+ *       {@link AsyncMonad#unordered()}, {@link AsyncMonad#recover(ExceptionHandler)} and
+ *       {@link AsyncMonad#deadline(Instant)}.
+ *   <li>Gathering the results of the tasks with
+ *       {@link AsyncMonad#result(Function)}.
+ * </ol>
+ *
+ * Here is a simple example
  * <pre>
  *   int sum;
  *   try(var asyncMonad = AsyncMonad.&lt;Integer, RuntimeException&gt;of(forker -&gt; {
