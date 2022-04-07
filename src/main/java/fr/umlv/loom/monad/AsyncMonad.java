@@ -21,6 +21,17 @@ import java.util.stream.Stream;
  *       {@link AsyncMonad#result(Function)}.
  * </ol>
  *
+ * The default semantics is the same as looping over all the tasks and calling them one by one
+ * to get the results. Thus, the results are available in order (if {@link AsyncMonad#of(Collection)} is used,
+ * the result are in order if the collection itself is {@link Spliterator#ORDERED ordered}),
+ * exceptions are propagated as usual and if an exception occurs it cancels all the remaining tasks.
+ *
+ * The method {@link #unordered()} relax the ordering constraint allowing the results to be processed
+ * as soon as they are available. The method {@link #recover(ExceptionHandler)} relax the exception constraint
+ * for checked exceptions (exceptions that are not subclasses of {@link RuntimeException})
+ * by providing a way to either substitute a value to the exception or wrap the exception into another
+ * exception.
+ *
  * Here is a simple example
  * <pre>
  *   int sum;
