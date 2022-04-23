@@ -25,6 +25,12 @@ On top of each example, there is the command line to run it.
 - If you want to play with the internals, the class `Continuation` is hidden thus
   `--add-exports java.base/jdk.internal.vm=ALL-UNNAMED` should be added to the command line.
 
+## AsyncScope
+
+This repository also contains a high-level structured concurrency construct named
+[src/main/java/fr/umlv/loom/structured/AsyncScope.java](AsyncScope) that is a proposed replacement
+to the more low level `StructuredTaskScope` currently provided by the OpenJDK loom repository.
+
 ## Loom actor framework
 
 At some point of the history, this project was containing an actor system based on loom.
