@@ -1,4 +1,4 @@
-package fr.umlv.loom.monad;
+package fr.umlv.loom.structured;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -22,7 +22,7 @@ record AsyncScopeImpl<R, E extends Exception>(
     ExecutorService executorService,
     ExecutorCompletionService<R> completionService,
     ArrayList<Future<R>> futures,
-    ExceptionHandler<Exception, ? extends R, ? extends E> handler,
+    AsyncScope.ExceptionHandler<Exception, ? extends R, ? extends E> handler,
     Instant deadline
     ) implements AsyncScope<R, E> {
 
@@ -33,7 +33,7 @@ record AsyncScopeImpl<R, E extends Exception>(
   }
 
   @Override
-  public AsyncScope<R, E> fork(Task<? extends R, ? extends E> task) {
+  public AsyncScope<R, E> async(Task<? extends R, ? extends E> task) {
     if (executorService.isShutdown()) {
       throw new IllegalStateException("result already called");
     }
@@ -71,7 +71,7 @@ record AsyncScopeImpl<R, E extends Exception>(
   }
 
   @Override
-  public <T> T result(Function<? super Stream<R>, T> streamMapper) throws E, DeadlineException, InterruptedException {
+  public <T> T await(Function<? super Stream<R>, ? extends T> streamMapper) throws E, DeadlineException, InterruptedException {
     if (executorService.isShutdown()) {
       throw new IllegalStateException("result already called");
     }

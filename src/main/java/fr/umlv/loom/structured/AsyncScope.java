@@ -1,4 +1,4 @@
-package fr.umlv.loom.monad;
+package fr.umlv.loom.structured;
 
 import java.time.Instant;
 import java.util.function.Function;
@@ -7,38 +7,45 @@ import java.util.stream.Stream;
 /**
  * A scope to execute asynchronous tasks in way that appears to be synchronous.
  *
- * The API is separated into 4 different phases
+ * The API is separated into different phases
  * <ol>
- *   <li>Create the async scope with either {@link AsyncScope#of()} or
+ *   <li>Create the async scope with either {@link AsyncScope#ordered()} or
  *       if you don't care about the order with {@link AsyncScope#unordered()}.
- *   <li>Spawn task using {@link #fork(Task)}
- *   <li>Optionally configure how to react to checked exception using
+ *   <li>Execute task using {@link #async(Task)}
+ *   <li>Optionally configure how to react to checked exceptions using
  *        {@link AsyncScope#recover(ExceptionHandler)} or set a deadline with {@link #deadline(Instant)}.
- *   <li>Gather the results of the tasks with
- *       {@link AsyncScope#result(Function)}.
+ *   <li>Gather the results of the tasks in a stream with
+ *       {@link AsyncScope#await(Function)}.
  * </ol>
  *
- * The default semantics is the same as a loop over all the tasks and calling them one by one
- * to get the results. Thus, the results are available in order, exceptions are propagated as
- * usual and if an exception occurs it cancels all the remaining tasks.
+ * Using {@link #ordered()} is equivalent to a loop over all the tasks and calling them one by one
+ * to get the results. Thus, the results are available in order.
+ * Using {@link #unordered()} relax the ordering constraint allowing the results to be processed
+ *  * as soon as they are available.
  *
- * The method {@link #unordered()} relax the ordering constraint allowing the results to be processed
- * as soon as they are available. The method {@link #recover(ExceptionHandler)} relax the exception constraint
- * for checked exceptions (exceptions that are not subclasses of {@link RuntimeException})
- * by providing a way to either substitute a value to the exception or wrap the exception into another
- * exception.
+ * Exceptions are automatically propagated from the tasks to the method {@link #await(Function)} and
+ * if an exception occurs it cancels all the remaining tasks.
  *
- * Here is a simple example
+ * The method {@link #recover(ExceptionHandler)} recovers from checked exceptions (exceptions that are
+ * not subclasses of {@link RuntimeException}) either by returning a value instead or by
+ * propagating another exception.
+ *
+ * Here is a simple example using {@link #ordered()}, despite the fact that the first
+ * task take longer to complete, the results of the tasks are available in order.
  * <pre>
  *   List&lt;Integer&gt; list;
- *   try(var scope = AsyncScope.&lt;Integer, RuntimeException&gt;of()) {
- *       scope.fork(() -&gt; 10);
- *       scope.fork(() -&gt; 20);
- *       list = scope.result(Stream::toList);  // [10, 20]
+ *   try(var scope = AsyncScope.&lt;Integer, RuntimeException&gt;ordered()) {
+ *       scope.async(() -&gt; {
+ *         Thread.sleep(200);
+ *         return 10;
+ *       });
+ *       scope.async(() -&gt; 20);
+ *       list = scope.await(Stream::toList);  // [10, 20]
  *   }
  * </pre>
  *
- * and an example using {@link #unordered()}
+ * and an example using {@link #unordered()}, here, the results are available
+ * in completion order.
  * <pre>
  *   List&lt;Integer&gt; list;
  *   try(var scope = AsyncScope.&lt;Integer, RuntimeException&gt;unordered()) {
@@ -57,17 +64,17 @@ import java.util.stream.Stream;
  */
 public sealed interface AsyncScope<R, E extends Exception> extends AutoCloseable permits AsyncScopeImpl {
   /**
-   * Creates an async scope with the default behavior.
+   * Creates an async scope with that receives the results of tasks in the order of the calls to {@link #async(Task)}.
    *
    * @param <R> type of task values
    * @param <E> type of the checked exception or {@link RuntimeException} otherwise
    */
-  static <R, E extends Exception> AsyncScope<R,E> of() {
+  static <R, E extends Exception> AsyncScope<R,E> ordered() {
     return AsyncScopeImpl.of(true);
   }
 
   /**
-   * Creates an async scope that receive the result of tasks out of order.
+   * Creates an async scope that receives the results of tasks out of order.
    *
    * @param <R> type of task values
    * @param <E> type of the checked exception or {@link RuntimeException} otherwise
@@ -80,6 +87,8 @@ public sealed interface AsyncScope<R, E extends Exception> extends AutoCloseable
    * Task to execute.
    * @param <R> type of the return value
    * @param <E> type of the checked exception or {@link RuntimeException} otherwise
+   *           
+   * @see #async(Task)
    */
   interface Task<R, E extends Exception> {
     /**
@@ -92,18 +101,20 @@ public sealed interface AsyncScope<R, E extends Exception> extends AutoCloseable
   }
 
   /**
-   * Spawn a task asynchronously
-   * @param task the task to spawn
+   * Execute a task asynchronously.
+   * @param task the task to execute
    *             
-   * @see #result(Function)
+   * @see #await(Function)
    */
-  AsyncScope<R, E> fork(Task<? extends R, ? extends E> task);
+  AsyncScope<R, E> async(Task<? extends R, ? extends E> task);
 
   /**
-   * A handler of checked exception.
+   * A handler of checked exceptions.
    * @param <E> type of the exception raised by the tasks
    * @param <R> type of the result of a task
    * @param <F> type of new exception if a new exception is raised, {@link RuntimeException} otherwise
+   *
+   * @see #recover(ExceptionHandler)
    */
   interface ExceptionHandler<E extends Exception, R, F extends Exception> {
     /**
@@ -116,11 +127,11 @@ public sealed interface AsyncScope<R, E extends Exception> extends AutoCloseable
   }
 
   /**
-   * Configures an exception handler to recover from the checked exceptions raised by the tasks.
-   * This method can not intercept {@link RuntimeException} or {@link Error}
-   * those will stop the method {@link #result(Function)} to complete.
-   * This method is an intermediary method that configure the async monad,
-   * the handler will be used only when {@link #result(Function)} will be called.
+   * Configures an exception handler to recover from the checked exceptions potentially raised by the tasks.
+   * This method can not intercept {@link RuntimeException} or {@link Error},
+   * those will stop the method {@link #await(Function)} to complete.
+   * This method is an intermediary method that configure the async scope,
+   * the handler will be used when {@link #await(Function)} is called.
    *
    * @param handler the exception handler
    * @return a new async scope
@@ -130,11 +141,11 @@ public sealed interface AsyncScope<R, E extends Exception> extends AutoCloseable
   <F extends Exception> AsyncScope<R,F> recover(ExceptionHandler<? super E, ? extends R, ? extends F> handler);
 
   /**
-   * Exception thrown if the {@link #deadline(Instant) deadline} is reached.
+   * Exception thrown if the deadline set by {@link #deadline(Instant) deadline} is reached.
    */
   final class DeadlineException extends RuntimeException {
     /**
-     * DeadlineException with a message.
+     * Creates a DeadlineException with a message.
      * @param message the message of the exception
      */
     public DeadlineException(String message) {
@@ -142,7 +153,7 @@ public sealed interface AsyncScope<R, E extends Exception> extends AutoCloseable
     }
 
     /**
-     * DeadlineException with a message and a cause.
+     * Creates a DeadlineException with a message and a cause.
      * @param message the message of the exception
      * @param cause the cause of the exception
      */
@@ -151,7 +162,7 @@ public sealed interface AsyncScope<R, E extends Exception> extends AutoCloseable
     }
 
     /**
-     * DeadlineException with a cause.
+     * Creates a DeadlineException with a cause.
      * @param cause the cause of the exception
      */
     public DeadlineException(Throwable cause) {
@@ -162,11 +173,14 @@ public sealed interface AsyncScope<R, E extends Exception> extends AutoCloseable
   /**
    * Configures a deadline for the whole computation.
    * If the deadline time is less than the current time, the deadline is ignored.
+   * This method is an intermediary method that configure the async scope,
+   * the deadline will be set when {@link #await(Function)} is called.
+   *
    * @param deadline the timeout deadline
    * @return the configured option
    * @throws IllegalStateException if a deadline is already configured
    *
-   * @see #result(Function)
+   * @see #await(Function)
    * @see DeadlineException
    */
   AsyncScope<R,E> deadline(Instant deadline);
@@ -175,9 +189,8 @@ public sealed interface AsyncScope<R, E extends Exception> extends AutoCloseable
    * Propagates the results of the asynchronous tasks as a stream to process them.
    * This method may block if the stream requires elements that are not yet available.
    *
-   * Independently of the fact that this method complete normally or not,
-   * all tasks either complete normally or are cancelled because the result value is not necessary
-   * for the stream computation.
+   * When this method returns, all tasks either complete normally or are cancelled because
+   * the result value is not necessary for the stream computation.
    *
    * @param streamMapper function called with a stream to return the result of the whole computation
    * @return the result of the whole computation
@@ -186,11 +199,10 @@ public sealed interface AsyncScope<R, E extends Exception> extends AutoCloseable
    * @throws InterruptedException if the current thread or any threads running a task is interrupted
    * @throws DeadlineException if the {@link #deadline(Instant) deadline} is reached
    */
-  <T> T result(Function<? super Stream<R>, T> streamMapper) throws E, DeadlineException, InterruptedException;
+  <T> T await(Function<? super Stream<R>, ? extends T> streamMapper) throws E, DeadlineException, InterruptedException;
 
   /**
-   * Closes the async monad and make sure that any dangling asynchronous tasks are cancelled
-   * if necessary.
+   * Closes the async scope and if necessary make sure that any dangling asynchronous tasks are cancelled.
    * This method is idempotent.
    */
   @Override
