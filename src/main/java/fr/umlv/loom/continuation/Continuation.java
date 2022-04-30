@@ -1,7 +1,7 @@
 package fr.umlv.loom.continuation;
 
 import fr.umlv.loom.executor.UnsafeExecutors;
-import jdk.incubator.concurrent.ScopeLocal;
+import jdk.incubator.concurrent.ExtentLocal;
 
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
@@ -9,7 +9,7 @@ import java.util.concurrent.locks.ReentrantLock;
 public class Continuation {
   private enum State { NEW, RUNNING, WAITED, TERMINATED }
 
-  private static final ScopeLocal<Continuation> CONTINUATION_SCOPE_LOCAL = ScopeLocal.newInstance();
+  private static final ExtentLocal<Continuation> CONTINUATION_SCOPE_LOCAL = ExtentLocal.newInstance();
 
   private final Runnable runnable;
   private final Thread owner;
@@ -31,7 +31,7 @@ public class Continuation {
         state = State.RUNNING;
         var executor = UnsafeExecutors.virtualThreadExecutor(Runnable::run);
         executor.execute(() -> {
-          ScopeLocal.where(CONTINUATION_SCOPE_LOCAL, this, runnable);
+          ExtentLocal.where(CONTINUATION_SCOPE_LOCAL, this, runnable);
           state = State.TERMINATED;
         });
       }
