@@ -1,5 +1,6 @@
 package fr.umlv.loom.structured;
 
+import java.lang.reflect.Modifier;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -26,6 +27,81 @@ record AsyncScopeImpl<R, E extends Exception>(
     Instant deadline
     ) implements AsyncScope<R, E> {
 
+  private static final boolean ASSERTION_ENABLED;
+  static {
+    var assertionEnabled = false;
+    //noinspection AssertWithSideEffects
+    assert assertionEnabled = true;
+    ASSERTION_ENABLED = assertionEnabled;
+  }
+
+  private static final class Debug {
+    private static final ClassValue<String> CLASS_VALUE = new ClassValue<>() {
+      @Override
+      protected String computeValue(Class<?> type) {
+        return isClassAllowed(type);
+      }
+    };
+
+    private static String isClassAllowed(Class<?> type) {
+      if (!Modifier.isFinal(type.getModifiers())) {
+        return type.getName() + " is not final";
+      }
+      for(Class<?> t = type; t != Object.class; t = t.getSuperclass()) {
+        for (var field : t.getDeclaredFields()) {
+          var modifiers = field.getModifiers();
+          if (Modifier.isStatic(modifiers) || Modifier.isVolatile(modifiers)) {
+            continue;
+          }
+          if (!Modifier.isFinal(modifiers)) {
+            return field + " is not declared final or volatile";
+          }
+          var result = isTypeAllowed(field.getType());
+          if (result != null) {
+            return "for field " + field + ", " + result;
+          }
+        }
+      }
+      return null;
+    }
+
+    private static String isTypeAllowed(Class<?> type) {
+      if (type.isRecord()) {
+        for(var component: type.getRecordComponents()) {
+          var result = isTypeAllowed(component.getType());
+          if (result != null) {
+            return "for component " + component + ", " + result;
+          }
+        }
+        return null;
+      }
+      if (type.isPrimitive()) {
+        return null;
+      }
+      var packageName = type.getPackageName();
+      if (packageName.equals("java.time")
+          || packageName.equals("java.util.concurrent")
+          || packageName.equals("java.util.concurrent.atomic")
+          || packageName.equals("java.util.concurrent.locks")) {
+        return null;
+      }
+      return switch (type.getName()) {
+        case "java.lang.String",
+            "java.lang.Void", "java.lang.Boolean", "java.lang.Byte", "java.lang.Character", "java.lang.Short",
+            "java.lang.Integer", "java.lang.Long", "java.lang.Float", "java.lang.Double",
+            "java.util.Random" -> null;
+        default -> CLASS_VALUE.get(type);
+      };
+    }
+
+    private static void checkAsyncTaskUseOnlyImmutableData(Class<?> clazz) {
+      var result = CLASS_VALUE.get(clazz);
+      if (result != null) {
+        throw new IllegalStateException("lambda " + clazz.getName()+ " captures modifiable state " + result);
+      }
+    }
+  }
+
   public static <R, E extends Exception> AsyncScope<R,E> of(boolean ordered) {
     var executorService = Executors.newVirtualThreadPerTaskExecutor();
     var completionService = ordered? null: new ExecutorCompletionService<R>(executorService);
@@ -36,6 +112,9 @@ record AsyncScopeImpl<R, E extends Exception>(
   public AsyncScope<R, E> async(Task<? extends R, ? extends E> task) {
     if (executorService.isShutdown()) {
       throw new IllegalStateException("result already called");
+    }
+    if (ASSERTION_ENABLED) {
+      Debug.checkAsyncTaskUseOnlyImmutableData(task.getClass());
     }
     if (completionService != null) {
       futures.add(completionService.submit(task::compute));

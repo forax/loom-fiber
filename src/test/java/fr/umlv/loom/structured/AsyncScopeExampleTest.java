@@ -12,7 +12,7 @@ import java.util.Objects;
 import java.util.Random;
 import java.util.stream.Stream;
 
-public class AsyncScopeExampleTest {
+public final class AsyncScopeExampleTest {
   sealed interface TravelItem permits Weather, Quotation {}
   record Weather(String source, String text) implements TravelItem { }
   record Quotation(String source, int price) implements TravelItem {}

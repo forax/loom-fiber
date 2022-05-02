@@ -1,5 +1,6 @@
 package fr.umlv.loom.structured;
 
+import java.io.Serializable;
 import java.time.Instant;
 import java.util.function.Function;
 import java.util.stream.Stream;
@@ -103,6 +104,7 @@ public sealed interface AsyncScope<R, E extends Exception> extends AutoCloseable
   /**
    * Execute a task asynchronously.
    * @param task the task to execute
+   * @throws IllegalStateException if the lambda captures a value of a mutable class while assertions are enabled
    *             
    * @see #await(Function)
    */

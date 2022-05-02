@@ -8,6 +8,7 @@ import java.io.UncheckedIOException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
 
 import static java.util.stream.IntStream.range;
@@ -17,7 +18,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
-public class AsyncScopeTest {
+public final class AsyncScopeTest {
   @Test
   public void ordered() throws InterruptedException {
     try(var scope = AsyncScope.<Integer, RuntimeException>ordered()) {
@@ -103,13 +104,13 @@ public class AsyncScopeTest {
 
   @Test
   public void unorderedShortcut() throws InterruptedException {
-    var box = new Object() { boolean ok; };
+    var box = new AtomicBoolean();
     try(var scope = AsyncScope.<Integer, RuntimeException>unordered()) {
       scope.async(() -> {
         try {
           Thread.sleep(1_000);
         } catch (InterruptedException e) {
-          box.ok = true;
+          box.set(true);
           throw e;
         }
         throw new AssertionError("fail !");
@@ -120,7 +121,7 @@ public class AsyncScopeTest {
       });
       assertEquals(1, scope.await(Stream::findFirst).orElseThrow());
     }
-    assertTrue(box.ok);
+    assertTrue(box.get());
   }
 
   @Test
@@ -295,7 +296,7 @@ public class AsyncScopeTest {
 
   @Test
   public void awaitShortcut() throws InterruptedException {
-    var box = new Object() { boolean ok; };
+    var box = new AtomicBoolean();
     try(var scope = AsyncScope.<Integer, RuntimeException>ordered()) {
       scope.async(() -> {
         Thread.sleep(1);
@@ -305,14 +306,14 @@ public class AsyncScopeTest {
         try {
           Thread.sleep(1_000);
         } catch (InterruptedException e) {
-          box.ok = true;
+          box.set(true);
           throw e;
         }
         throw new AssertionError("fail !");
       });
       assertEquals(1, scope.await(Stream::findFirst).orElseThrow());
     }
-    assertTrue(box.ok);
+    assertTrue(box.get());
   }
 
   @Test
@@ -332,13 +333,13 @@ public class AsyncScopeTest {
 
   @Test
   public void close() {
-    var box = new Object() { boolean ok; };
+    var box = new AtomicBoolean();
     try(var scope = AsyncScope.ordered()) {
       scope.async(() -> {
         try {
           Thread.sleep(1_000);
         } catch (InterruptedException e) {
-          box.ok = true;
+          box.set(true);
           throw e;
         }
         throw new AssertionError("fail !");
@@ -346,7 +347,7 @@ public class AsyncScopeTest {
 
       // do nothing
     }
-    assertTrue(box.ok);
+    assertTrue(box.get());
   }
 
   @Test
