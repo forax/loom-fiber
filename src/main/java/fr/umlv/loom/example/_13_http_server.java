@@ -45,8 +45,8 @@ public interface  _13_http_server {
       var json = tasks.stream()
           .map(Task::toJSON)
           .collect(joining(", ", "[", "]"));
-      exchange.sendResponseHeaders(200, json.length());
       exchange.getResponseHeaders().set("Content-Type", "application/json");
+      exchange.sendResponseHeaders(200, json.length());
       try (var writer = new OutputStreamWriter(exchange.getResponseBody(), UTF_8)) {
         writer.write(json);
       }
@@ -75,8 +75,8 @@ public interface  _13_http_server {
       var task = new Task(tasks.size(), content);
       tasks.add(task);
       var json = task.toJSON();
-      exchange.sendResponseHeaders(200, json.length());
       exchange.getResponseHeaders().set("Content-Type", "application/json");
+      exchange.sendResponseHeaders(200, json.length());
       try (var writer = new OutputStreamWriter(exchange.getResponseBody(), UTF_8)) {
         writer.write(json);
       }
