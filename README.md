@@ -35,3 +35,8 @@ to the more low level `StructuredTaskScope` currently provided by the OpenJDK lo
 
 At some point of the history, this project was containing an actor system based on loom.
 It has now its own repository [https://github.com/forax/loom-actor](https://github.com/forax/loom-actor).
+
+## Loom expressjs
+
+There is a re-implementation of the [expressjs API](https://expressjs.com/en/4x/api.html) in Java using Loom
+[JExpressLoom.java](https://github.com/forax/jexpress/blob/master/src/main/java/JExpressLoom.java).
