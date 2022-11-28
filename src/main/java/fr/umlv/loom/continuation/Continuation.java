@@ -56,7 +56,9 @@ public class Continuation {
     continuation.lock.lock();
     try {
       continuation.state = State.WAITED;
-      continuation.condition.await();
+      do {
+          continuation.condition.await();
+      } while (continuation.state == State.WAITED);
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
     } finally {
