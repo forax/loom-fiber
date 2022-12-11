@@ -11,12 +11,12 @@ jobs:
     runs-on: ubuntu-latest
     name: Java + Loom early access build
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: setup
         uses: oracle-actions/setup-java@v1
         with:
           website: jdk.java.net
-          release: Loom
+          release: loom
       - name: build
         run: |
           mvn -B package
