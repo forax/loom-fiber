@@ -7,7 +7,7 @@ wiht the [examples](src/main/java/fr/umlv/loom/example).
 
 ## How to build
 
-Download the latest early access build of loom [http://jdk.java.net/loom](http://jdk.java.net/loom)
+Download the latest early access build of jdk-20 [http://jdk.java.net/](http://jdk.java.net/)
 set the environment variable JAVA_HOME to point to that JDK and then use Maven.
 
 ```
