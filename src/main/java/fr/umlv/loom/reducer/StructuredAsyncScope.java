@@ -144,6 +144,8 @@ public final class StructuredAsyncScope<T, A, V> extends StructuredTaskScope<T> 
     Result<T> result;
     switch (future.state()) {
       case CANCELLED -> {
+        // TODO automatic cancelling of the other tasks
+        // if (!shutdown) { shutdown(); }
         return;
       }
       case SUCCESS -> result = new Result<>(State.SUCCEED, future.resultNow(), null);
