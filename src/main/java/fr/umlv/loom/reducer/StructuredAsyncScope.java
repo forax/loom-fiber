@@ -27,7 +27,11 @@ public final class StructuredAsyncScope<T, A, V> extends StructuredTaskScope<T> 
       requireNonNull(finisher);
     }
 
-    static <T> Reducer<T, ?, List<Result<T>>> toList() {
+    public Reducer<T, A, V> dropExceptions() {
+      return new Reducer<>((oldValue, result, shouldShutdown) -> combiner.apply(oldValue, new Result<>(result.state, result.element, null), shouldShutdown), finisher);
+    }
+
+    public static <T> Reducer<T, ?, List<Result<T>>> toList() {
       record Link<T> (Result<T> result, int size, Link<T> next) {
         static <T> Link<T> combine(Link<T> old, Result<T> result, Runnable shutdown) {
           return new Link<>(result, old == null ? 1 : old.size + 1, old);
@@ -76,7 +80,7 @@ public final class StructuredAsyncScope<T, A, V> extends StructuredTaskScope<T> 
       return new Result<>(other.state, other.element, newException);
     }
 
-    static <T> Reducer<T, ?, Optional<Result<T>>> max(Comparator<? super T> comparator) {
+    public static <T> Reducer<T, ?, Optional<Result<T>>> max(Comparator<? super T> comparator) {
       return new Reducer<T, Result<T>, Optional<Result<T>>>((r1, r2, shutdown) -> maxMergeResult(r1, r2, comparator), Optional::ofNullable);
     }
 
@@ -97,7 +101,7 @@ public final class StructuredAsyncScope<T, A, V> extends StructuredTaskScope<T> 
       return new Result<>(other.state, other.element, newException);
     }
 
-    static <T> Reducer<T, ?, Optional<Result<T>>> first() {
+    public static <T> Reducer<T, ?, Optional<Result<T>>> first() {
       return new Reducer<T, Result<T>, Optional<Result<T>>>(Reducer::firstMergeResult, Optional::ofNullable);
     }
   }

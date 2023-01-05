@@ -47,10 +47,23 @@ public class StructAsyncScopeDemo {
     }
   }
 
+  public static void firstDropExceptions() throws InterruptedException {
+    try(var scope = StructuredAsyncScope.of(Reducer.<Integer>first().dropExceptions())) {
+      scope.fork(() -> {
+        throw new IOException();
+      });
+      scope.fork(() -> 3);
+      scope.fork(() -> 42);
+
+      Optional<Result<Integer>> first = scope.result();
+      System.out.println(first);  // Optional[Result[state=SUCCEED, element=3, suppressed=java.io.IOException]]
+    }
+  }
 
   public static void main(String[] args) throws InterruptedException {
     toList();
     max();
     first();
+    firstDropExceptions();
   }
 }
