@@ -56,7 +56,7 @@ public class StructAsyncScopeDemo {
       scope.fork(() -> 42);
 
       Optional<Result<Integer>> first = scope.result();
-      System.out.println(first);  // Optional[Result[state=SUCCEED, element=3, suppressed=java.io.IOException]]
+      System.out.println(first);  // Optional[Result[state=SUCCEED, element=3, suppressed=null]]
     }
   }
 
