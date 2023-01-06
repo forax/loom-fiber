@@ -62,20 +62,20 @@ public class StructAsyncScopeDemo {
   }
 
   public static void shutdownOnFailure() throws InterruptedException {
-    try(var scope = StructuredAsyncScope.of(Reducer.toList().shutdownOnFailure())) {
+    try(var scope = StructuredAsyncScope.of(Reducer.firstException().shutdownOnFailure())) {
       scope.fork(() -> null);
-      scope.fork(() -> {
+      /*scope.fork(() -> {
         Thread.sleep(50);
         throw new IOException();
-      });
+      });*/
       scope.fork(() -> {
         Thread.sleep(100);
         return null;
       });
 
-      List<Result<Object>> result = scope.result();
-      //result.stream().filter(r -> r.state() == State.FAILED).findFirst().ifPresent(r -> { throw new RuntimeException(r.suppressed()); });
-      System.out.println(result);  // [Result[state=SUCCEED, element=null, suppressed=null], Result[state=FAILED, element=null, suppressed=java.io.IOException]]
+      Optional<Throwable> result = scope.result();
+      result.ifPresent(e -> { throw new RuntimeException(e); });
+      System.out.println(result);  // Optional.empty
     }
   }
 

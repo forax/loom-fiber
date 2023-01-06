@@ -113,6 +113,15 @@ public final class StructuredAsyncScope<T, A, V> extends StructuredTaskScope<T> 
         return combiner.apply(oldValue, result, shouldShutdown);
       }, finisher);
     }
+
+    public static <T> Reducer<T, ?, Optional<Throwable>> firstException() {
+      return new Reducer<T, Result<T>, Optional<Throwable>>((oldValue, result, shouldShutdown) -> {
+        if (oldValue != null && oldValue.state == State.FAILED) {
+          return oldValue;
+        }
+        return result;
+      }, result -> Optional.ofNullable(result.suppressed));
+    }
   }
 
   public record Result<T>(State state, T element, Throwable suppressed) {
