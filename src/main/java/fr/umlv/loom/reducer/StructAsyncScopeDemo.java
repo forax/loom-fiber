@@ -60,10 +60,23 @@ public class StructAsyncScopeDemo {
     }
   }
 
+  public static void shutdownOnFailure() throws InterruptedException {
+    try(var scope = StructuredAsyncScope.of(Reducer.shutdownOnFailure())) {
+      scope.fork(() -> {
+        throw new IOException();
+      });
+      scope.fork(() -> null);
+
+      Result<Void> result = scope.result();
+      System.out.println(result);  // Result[state=FAILED, element=null, suppressed=java.io.IOException]
+    }
+  }
+
   public static void main(String[] args) throws InterruptedException {
     toList();
     max();
     first();
     firstDropExceptions();
+    shutdownOnFailure();
   }
 }

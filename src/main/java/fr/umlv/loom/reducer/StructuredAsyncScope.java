@@ -104,6 +104,18 @@ public final class StructuredAsyncScope<T, A, V> extends StructuredTaskScope<T> 
     public static <T> Reducer<T, ?, Optional<Result<T>>> first() {
       return new Reducer<T, Result<T>, Optional<Result<T>>>(Reducer::firstMergeResult, Optional::ofNullable);
     }
+
+    public static Reducer<Void, ?, Result<Void>> shutdownOnFailure() {
+      return new Reducer<Void, Result<Void>, Result<Void>>((oldValue, result, shouldShutdown) -> {
+        if (oldValue != null && oldValue.state == State.FAILED) {
+          return oldValue;
+        }
+        if (result.state == State.FAILED) {
+          shouldShutdown.run();
+        }
+        return result;
+      }, v -> v);
+    }
   }
 
   public record Result<T>(State state, T element, Throwable suppressed) {
