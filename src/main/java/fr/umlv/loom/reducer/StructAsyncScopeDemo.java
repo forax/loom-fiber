@@ -2,6 +2,7 @@ package fr.umlv.loom.reducer;
 
 import fr.umlv.loom.reducer.StructuredAsyncScope.Reducer;
 import fr.umlv.loom.reducer.StructuredAsyncScope.Result;
+import fr.umlv.loom.reducer.StructuredAsyncScope.Result.State;
 
 import java.io.IOException;
 import java.util.List;
@@ -61,14 +62,20 @@ public class StructAsyncScopeDemo {
   }
 
   public static void shutdownOnFailure() throws InterruptedException {
-    try(var scope = StructuredAsyncScope.of(Reducer.shutdownOnFailure())) {
+    try(var scope = StructuredAsyncScope.of(Reducer.toList().shutdownOnFailure())) {
+      scope.fork(() -> null);
       scope.fork(() -> {
+        Thread.sleep(50);
         throw new IOException();
       });
-      scope.fork(() -> null);
+      scope.fork(() -> {
+        Thread.sleep(100);
+        return null;
+      });
 
-      Result<Void> result = scope.result();
-      System.out.println(result);  // Result[state=FAILED, element=null, suppressed=java.io.IOException]
+      List<Result<Object>> result = scope.result();
+      //result.stream().filter(r -> r.state() == State.FAILED).findFirst().ifPresent(r -> { throw new RuntimeException(r.suppressed()); });
+      System.out.println(result);  // [Result[state=SUCCEED, element=null, suppressed=null], Result[state=FAILED, element=null, suppressed=java.io.IOException]]
     }
   }
 
