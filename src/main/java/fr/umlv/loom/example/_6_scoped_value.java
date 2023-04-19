@@ -12,7 +12,6 @@ public class _6_scoped_value {
 
   public static void main(String[] args) throws InterruptedException {
     var vthread = Thread.ofVirtual()
-        .allowSetThreadLocals(false)
         .start(() -> {
           ScopedValue.where(USER, "Bob", () -> {
             sayHello();
