@@ -7,12 +7,12 @@ import java.util.stream.Stream;
 
 /**
  * A scope to execute asynchronous tasks in way that appears to be synchronous.
- *
+ * <p>
  * The API is separated into different phases
  * <ol>
  *   <li>Create the async scope with either {@link AsyncScope#ordered()} or
  *       if you don't care about the order with {@link AsyncScope#unordered()}.
- *   <li>Execute task using {@link #async(Task)}
+ *   <li>Execute a task using {@link #async(Task)}
  *   <li>Optionally configure how to react to checked exceptions using
  *        {@link AsyncScope#recover(ExceptionHandler)} or set a deadline with {@link #deadline(Instant)}.
  *   <li>Gather the results of the tasks in a stream with
@@ -23,14 +23,14 @@ import java.util.stream.Stream;
  * to get the results. Thus, the results are available in order.
  * Using {@link #unordered()} relax the ordering constraint allowing the results to be processed
  *  * as soon as they are available.
- *
+ * <p>
  * Exceptions are automatically propagated from the tasks to the method {@link #await(Function)} and
  * if an exception occurs it cancels all the remaining tasks.
- *
+ * <p>
  * The method {@link #recover(ExceptionHandler)} recovers from checked exceptions (exceptions that are
  * not subclasses of {@link RuntimeException}) either by returning a value instead or by
  * propagating another exception.
- *
+ * <p>
  * Here is a simple example using {@link #ordered()}, despite the fact that the first
  * task take longer to complete, the results of the tasks are available in order.
  * <pre>
