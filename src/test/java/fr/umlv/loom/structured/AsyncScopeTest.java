@@ -1,380 +1,253 @@
 package fr.umlv.loom.structured;
 
-import fr.umlv.loom.structured.AsyncScope.DeadlineException;
+import fr.umlv.loom.structured.AsyncScope.Failure;
+import fr.umlv.loom.structured.AsyncScope.Result;
+import fr.umlv.loom.structured.AsyncScope.Success;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.stream.Stream;
 
-import static java.util.stream.IntStream.range;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
+import static org.junit.jupiter.api.Assertions.*;
 
-public final class AsyncScopeTest {
-  @Test
-  public void ordered() throws InterruptedException {
-    try(var scope = AsyncScope.<Integer, RuntimeException>ordered()) {
-      scope.async(() -> 42);
-      assertEquals(List.of(42), scope.await(Stream::toList));
-    }
-  }
+public class AsyncScopeTest {
 
   @Test
-  public void orderedWithSleep() throws InterruptedException {
-    try(var scope = AsyncScope.<Integer, RuntimeException>ordered()) {
-      scope.async(() -> {
-        Thread.sleep(200);
+  public void oneTaskSuccess() throws InterruptedException{
+    try(var scope = new AsyncScope<Integer, RuntimeException>()) {
+      var task = scope.async(() -> {
+        Thread.sleep(100);
         return 10;
       });
-      scope.async(() -> 20);
-      assertEquals(List.of(10, 20), scope.await(Stream::toList));
+
+      scope.awaitAll();
+
+      int value = task.success();
+      assertEquals(10, value);
     }
   }
 
   @Test
-  public void orderedSimple() throws InterruptedException {
-    try(var scope = AsyncScope.<Integer, RuntimeException>ordered()) {
-      scope.async(() -> 10);
-      scope.async(() -> 20);
-      assertEquals(List.of(10, 20), scope.await(Stream::toList));
-    }
-  }
-
-  @Test
-  public void orderedSeveralTasks() throws InterruptedException {
-    try(var scope = AsyncScope.<Integer, RuntimeException>ordered()) {
-      range(0, 10_000).forEach(i -> scope.async(() -> i));
-      assertEquals(49_995_000, (int) scope.await(stream -> stream.mapToInt(v -> v).sum()));
-    }
-  }
-
-  @Test
-  public void orderedEmpty() throws InterruptedException {
-    try(var scope = AsyncScope.<Integer, RuntimeException>ordered()) {
-      scope.await(stream -> stream.peek(__ -> fail()).findFirst());
-    }
-  }
-
-  @Test
-  public void unordered() throws InterruptedException {
-    try(var scope = AsyncScope.<Integer, RuntimeException>unordered()) {
-      scope.async(() -> {
-        Thread.sleep(500);
-        return 500;
-      });
-      scope.async(() -> {
-        Thread.sleep(1);
-        return 1;
-      });
-      assertEquals(List.of(1, 500), scope.await(Stream::toList));
-    }
-  }
-
-  @Test
-  public void unorderedSimple() throws InterruptedException {
-    try(var scope = AsyncScope.<Integer, RuntimeException>unordered()) {
-      scope.async(() -> {
-        Thread.sleep(200);
+  public void oneTaskResultSucess() throws InterruptedException{
+    try(var scope = new AsyncScope<Integer, RuntimeException>()) {
+      var task = scope.async(() -> {
+        Thread.sleep(100);
         return 10;
       });
-      scope.async(() -> 20);
-      assertEquals(List.of(20, 10), scope.await(Stream::toList));
+
+      scope.awaitAll();
+
+      var result = task.result();
+      switch (result) {
+        case Success<Integer> success -> {}
+        default -> fail();
+      }
     }
   }
 
   @Test
-  public void unorderedFindFirst() throws InterruptedException {
-    try(var scope = AsyncScope.<Integer, RuntimeException>unordered()) {
-      scope.async(() -> {
-        Thread.sleep(200);
+  public void oneTaskFailures() throws InterruptedException{
+    try(var scope = new AsyncScope<Object, IOException>()) {
+      var task = scope.async(() -> {
+        Thread.sleep(100);
+        throw new IOException("oops");
+      });
+
+      scope.awaitAll();
+
+      assertThrows(IOException.class, task::success);
+    }
+  }
+
+  @Test
+  public void oneTaskResultFailures() throws InterruptedException{
+    try(var scope = new AsyncScope<Object, IOException>()) {
+      var task = scope.async(() -> {
+        Thread.sleep(100);
+        throw new IOException("oops");
+      });
+
+      scope.awaitAll();
+
+      var result = task.result();
+      switch (result) {
+        case Failure failure-> {}  // should not be a raw parameter
+        default -> fail();
+      }
+    }
+  }
+
+
+  @Test
+  public void manyTasksSuccess() throws InterruptedException{
+    try(var scope = new AsyncScope<Integer, RuntimeException>()) {
+      var task = scope.async(() -> {
+        Thread.sleep(100);
         return 10;
       });
-      scope.async(() -> 20);
-      assertEquals(20, scope.await(Stream::findFirst).orElseThrow());
-    }
-  }
-
-  @Test
-  public void unorderedShortcut() throws InterruptedException {
-    var box = new AtomicBoolean();
-    try(var scope = AsyncScope.<Integer, RuntimeException>unordered()) {
-      scope.async(() -> {
-        try {
-          Thread.sleep(1_000);
-        } catch (InterruptedException e) {
-          box.set(true);
-          throw e;
-        }
-        throw new AssertionError("fail !");
-      });
-      scope.async(() -> {
-        Thread.sleep(1);
-        return 1;
-      });
-      assertEquals(1, scope.await(Stream::findFirst).orElseThrow());
-    }
-    assertTrue(box.get());
-  }
-
-  @Test
-  public void unorderedEmpty() throws InterruptedException {
-    try(var scope = AsyncScope.<Object, RuntimeException>unordered()) {
-      scope.await(stream -> stream.peek(__ -> fail()).findFirst());
-    }
-  }
-
-  @Test
-  public void asyncCalledAfterResult() throws InterruptedException {
-    try(var scope = AsyncScope.<Object, RuntimeException>ordered()) {
-      scope.await(__ -> null);
-      assertThrows(IllegalStateException.class, () -> scope.async(() -> null));
-    }
-  }
-
-  @Test
-  public void recoverAndWrapException() {
-    try(var scope = AsyncScope.<Integer, IOException>ordered()) {
-      scope.async(() -> {
-        throw new IOException("boom !");
-      });
-      assertThrows(UncheckedIOException.class, () -> scope
-          .recover(exception -> { throw new UncheckedIOException(exception); })
-          .await(Stream::toList));
-    }
-  }
-
-  @Test
-  public void recoverWithAValue() throws InterruptedException {
-    try(var scope = AsyncScope.<Integer, IOException>ordered()) {
-      scope.async(() -> {
-        throw new IOException("boom !");
-      });
-      scope.async(() -> 1);
-      assertEquals(42, (int) scope
-          .recover((IOException exception) -> 41)
-          .await(stream -> stream.mapToInt(v -> v).sum()));
-    }
-  }
-
-  @Test
-  public void recoverCanNotRecoverRuntimeExceptions() {
-    try(var scope = AsyncScope.ordered()) {
-      scope.async(() -> {
-        throw new RuntimeException("boom !");
-      });
-      assertThrows(RuntimeException.class, () ->  scope
-          .recover(exception -> fail())  // should not be called
-          .await(stream -> stream.peek(__ -> fail()).findFirst()));
-    }
-  }
-
-  @Test
-  public void recoverPrecondition() {
-    try(var scope = AsyncScope.ordered()) {
-      assertThrows(NullPointerException.class, () -> scope.recover(null));
-    }
-  }
-
-  @Test
-  public void recoverSpecifiedTwice() {
-    try(var scope = AsyncScope.ordered()) {
-      assertThrows(IllegalStateException.class, () -> scope
-          .recover(exception -> null)
-          .recover(exception -> null));
-    }
-  }
-
-  @Test
-  public void recoverCalledAfterAwait() throws Exception {
-    try(var scope = AsyncScope.ordered()) {
-      scope.await(__ -> null);
-      assertThrows(IllegalStateException.class, () -> scope.recover(__ -> null));
-    }
-  }
-
-  @Test
-  public void deadline() {
-    try(var scope = AsyncScope.<Integer, RuntimeException>unordered()) {
-      scope.async(() -> {
-        Thread.sleep(5_000);
-        throw new AssertionError("fail !");
-      });
-      assertThrows(DeadlineException.class, () -> scope
-          .deadline(Instant.now().plus(100, ChronoUnit.MILLIS))
-          .await(stream -> stream.peek(__ -> fail()).toList()));
-    }
-  }
-
-  @Test
-  public void deadlineLongDeadline() throws InterruptedException {
-    try(var scope = AsyncScope.<Integer, RuntimeException>unordered()) {
-      scope.async(() -> {
-        Thread.sleep(1);
-        return 1;
-      });
-      assertEquals(1, scope
-          .deadline(Instant.now().plus(1_000, ChronoUnit.MILLIS))
-          .await(Stream::findFirst).orElseThrow());
-    }
-  }
-  @Test
-  public void deadlineUnordered() {
-    try(var scope = AsyncScope.<Integer, RuntimeException>unordered()) {
-      scope.async(() -> {
-        Thread.sleep(5_000);
-        throw new AssertionError("fail !");
-      });
-      assertThrows(DeadlineException.class, () -> scope
-          .deadline(Instant.now().plus(100, ChronoUnit.MILLIS))
-          .await(stream -> stream.peek(__ -> fail()).toList()));
-    }
-  }
-
-  @Test
-  public void deadlineUnorderedLongDeadline() throws InterruptedException {
-    try(var scope = AsyncScope.<Integer, RuntimeException>unordered()) {
-      scope.async(() -> {
-        Thread.sleep(1);
-        return 1;
-      });
-      assertEquals(1,scope
-          .deadline(Instant.now().plus(1_000, ChronoUnit.MILLIS))
-          .await(Stream::findFirst).orElseThrow());
-    }
-  }
-
-  @Test
-  public void deadlinePrecondition() {
-    try(var scope = AsyncScope.ordered()) {
-      assertThrows(NullPointerException.class, () -> scope.deadline(null));
-    }
-  }
-
-  @Test
-  public void deadlineSpecifiedTwice() {
-    try(var scope = AsyncScope.ordered()) {
-      assertThrows(IllegalStateException.class, () -> scope
-          .deadline(Instant.now())
-          .deadline(Instant.now()));
-    }
-  }
-
-  @Test
-  public void deadlineCalledAfterResult() throws InterruptedException {
-    try(var scope = AsyncScope.<Integer, RuntimeException>ordered()) {
-      scope.await(__ -> null);
-      assertThrows(IllegalStateException.class, () -> scope.deadline(Instant.now()));
-    }
-  }
-
-  @Test
-  public void await() throws InterruptedException {
-    try(var scope = AsyncScope.<Integer, RuntimeException>ordered()) {
-      scope.async(() -> {
-        Thread.sleep(1);
-        return 1;
-      });
-      assertEquals(List.of(1), scope.await(Stream::toList));
-    }
-  }
-
-  @Test
-  public void awaitWithNullResult() throws InterruptedException {
-    try(var scope = AsyncScope.<Object, RuntimeException>ordered()) {
-      scope.async(() -> null);
-      assertNull(scope.await(Stream::toList).get(0));
-    }
-  }
-
-  @Test
-  public void awaitShortcut() throws InterruptedException {
-    var box = new AtomicBoolean();
-    try(var scope = AsyncScope.<Integer, RuntimeException>ordered()) {
-      scope.async(() -> {
-        Thread.sleep(1);
-        return 1;
-      });
-      scope.async(() -> {
-        try {
-          Thread.sleep(1_000);
-        } catch (InterruptedException e) {
-          box.set(true);
-          throw e;
-        }
-        throw new AssertionError("fail !");
-      });
-      assertEquals(1, scope.await(Stream::findFirst).orElseThrow());
-    }
-    assertTrue(box.get());
-  }
-
-  @Test
-  public void awaitPrecondition() {
-    try(var scope = AsyncScope.ordered()) {
-      assertThrows(NullPointerException.class, () -> scope.await(null));
-    }
-  }
-
-  @Test
-  public void awaitCalledTwice() throws InterruptedException {
-    try(var scope = AsyncScope.<Void, RuntimeException>ordered()) {
-      scope.await(__ -> null);
-      assertThrows(IllegalStateException.class, () -> scope.await(__ -> null));
-    }
-  }
-
-  @Test
-  public void close() {
-    var box = new AtomicBoolean();
-    try(var scope = AsyncScope.ordered()) {
-      scope.async(() -> {
-        try {
-          Thread.sleep(1_000);
-        } catch (InterruptedException e) {
-          box.set(true);
-          throw e;
-        }
-        throw new AssertionError("fail !");
+      var task2 = scope.async(() -> {
+        Thread.sleep(300);
+        return 30;
       });
 
-      // do nothing
+      scope.awaitAll();
+
+      int value = task.success();
+      int value2 = task2.success();
+      assertEquals(40, value + value2);
     }
-    assertTrue(box.get());
   }
 
   @Test
-  public void closeCalledTwice() {
-    var scope = AsyncScope.ordered();
-    scope.close();
-    scope.close();
+  public void manyTasksFailure() throws InterruptedException, IOException {
+    try(var scope = new AsyncScope<Integer, IOException>()) {
+      var task = scope.async(() -> {
+        Thread.sleep(100);
+        return 10;
+      });
+      var task2 = scope.async(() -> {
+        Thread.sleep(300);
+        throw new IOException("oops");
+      });
+
+      scope.awaitAll();
+
+      assertEquals(10, task.success());
+      assertThrows(IOException.class, task2::success);
+    }
+  }
+
+
+  @Test
+  public void manyTasksSuccessStreamToList() throws InterruptedException, IOException {
+    try(var scope = new AsyncScope<Integer, RuntimeException>()) {
+      var task = scope.async(() -> {
+        Thread.sleep(300);
+        return 30;
+      });
+      var task2 = scope.async(() -> {
+        Thread.sleep(100);
+        return 10;
+      });
+
+      List<Integer> values = scope.await(stream -> stream.flatMap(Result::withOnlySuccess).toList());
+      assertEquals(List.of(10, 30), values);
+    }
+  }
+
+
+  @Test
+  public void manyTasksSuccessShortCircuitStream() throws InterruptedException {
+    try(var scope = new AsyncScope<Integer, RuntimeException>()) {
+      var task = scope.async(() -> {
+        Thread.sleep(100);
+        return 10;
+      });
+      var task2 = scope.async(() -> {
+        Thread.sleep(300);
+        return 30;
+      });
+
+      int value = scope.await(stream -> stream.flatMap(Result::withOnlySuccess).findFirst()).orElseThrow();
+      assertEquals(10, value);
+    }
   }
 
   @Test
-  public void fullExample() throws InterruptedException {
-    List<Integer> list;
-    try(var scope = AsyncScope.<Integer, IOException>unordered()) {
-      scope.async(() -> {
-        Thread.sleep(400);
-        return 111;
+  public void manyTasksFailureShortCircuitStream() throws InterruptedException {
+    try(var scope = new AsyncScope<Integer, IOException>()) {
+      var task = scope.async(() -> {
+        Thread.sleep(100);
+        return 10;
       });
-      scope.async(() -> {
-        Thread.sleep(200);
-        throw new IOException("boom !");
+      var task2 = scope.async(() -> {
+        Thread.sleep(1_000);
+        throw new IOException("oops");
       });
-      scope.async(() -> 666);
-      list = scope
-          .recover(ioException -> 333)
-          .deadline(Instant.now().plus(1, ChronoUnit.SECONDS))
-          .await(Stream::toList);
+
+      int value = scope.await(stream -> stream.flatMap(Result::withOnlySuccess).findFirst()).orElseThrow();
+      assertEquals(10, value);
     }
-    assertEquals(List.of(666, 333, 111), list);
+  }
+
+
+  @Test
+  public void manyTasksSuccessReduceStream() throws InterruptedException {
+    try(var scope = new AsyncScope<Integer, RuntimeException>()) {
+      var task = scope.async(() -> {
+        Thread.sleep(100);
+        return 10;
+      });
+      var task2 = scope.async(() -> {
+        Thread.sleep(300);
+        return 30;
+      });
+
+      var result = scope.await(stream -> stream.reduce(Result.merger(Integer::sum))).orElseThrow();
+      switch (result) {
+        case Success<Integer> success -> assertEquals(40, success.result());
+        default -> fail();
+      }
+    }
+  }
+
+  @Test
+  public void manyTasksFailureReduceStream() throws InterruptedException {
+    try(var scope = new AsyncScope<Integer, IOException>()) {
+      var task = scope.async(() -> {
+        Thread.sleep(100);
+        return 10;
+      });
+      var task2 = scope.async(() -> {
+        Thread.sleep(300);
+        throw new IOException("oops");
+      });
+
+      var result = scope.await(stream -> stream.reduce(Result.merger(Integer::sum))).orElseThrow();
+      switch (result) {
+        case Success success -> assertEquals(10, success.result());
+        default -> fail();
+      }
+    }
+  }
+
+  @Test
+  public void manyTasksFailureReduceStream2() throws InterruptedException {
+    try(var scope = new AsyncScope<Integer, IOException>()) {
+      var task = scope.async(() -> {
+        Thread.sleep(300);
+        return 10;
+      });
+      var task2 = scope.async(() -> {
+        Thread.sleep(100);
+        throw new IOException("oops");
+      });
+
+      var result = scope.await(stream -> stream.reduce(Result.merger(Integer::sum))).orElseThrow();
+      switch (result) {
+        case Success success -> assertEquals(10, success.result());
+        default -> fail();
+      }
+    }
+  }
+
+  @Test
+  public void manyTasksAllFailsReduceStream() throws InterruptedException {
+    try(var scope = new AsyncScope<Integer, IOException>()) {
+      var task = scope.async(() -> {
+        Thread.sleep(100);
+        throw new IOException("oops");
+      });
+      var task2 = scope.async(() -> {
+        Thread.sleep(300);
+        throw new IOException("oops2");
+      });
+
+      var result = scope.await(stream -> stream.reduce(Result.merger(Integer::sum))).orElseThrow();
+      switch (result) {
+        case Failure failure -> assertTrue(failure.exception() instanceof IOException);
+        default -> fail();
+      }
+    }
   }
 }

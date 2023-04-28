@@ -1,4 +1,4 @@
-package fr.umlv.loom.structured;
+package fr.umlv.loom.oldstructured;
 
 import java.lang.reflect.Modifier;
 import java.time.Duration;
@@ -19,13 +19,13 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
-record AsyncScopeImpl<R, E extends Exception>(
+record AsyncScope2Impl<R, E extends Exception>(
     ExecutorService executorService,
     ExecutorCompletionService<R> completionService,
     ArrayList<Future<R>> futures,
-    AsyncScope.ExceptionHandler<Exception, ? extends R, ? extends E> handler,
+    AsyncScope2.ExceptionHandler<Exception, ? extends R, ? extends E> handler,
     Instant deadline
-    ) implements AsyncScope<R, E> {
+    ) implements AsyncScope2<R, E> {
 
   private static final boolean ASSERTION_ENABLED;
   static {
@@ -102,14 +102,14 @@ record AsyncScopeImpl<R, E extends Exception>(
     }
   }
 
-  public static <R, E extends Exception> AsyncScope<R,E> of(boolean ordered) {
+  public static <R, E extends Exception> AsyncScope2<R,E> of(boolean ordered) {
     var executorService = Executors.newVirtualThreadPerTaskExecutor();
     var completionService = ordered? null: new ExecutorCompletionService<R>(executorService);
-    return new AsyncScopeImpl<>(executorService, completionService, new ArrayList<>(), null, null);
+    return new AsyncScope2Impl<>(executorService, completionService, new ArrayList<>(), null, null);
   }
 
   @Override
-  public AsyncScope<R, E> async(Task<? extends R, ? extends E> task) {
+  public AsyncScope2<R, E> async(Task<? extends R, ? extends E> task) {
     if (executorService.isShutdown()) {
       throw new IllegalStateException("result already called");
     }
@@ -126,7 +126,7 @@ record AsyncScopeImpl<R, E extends Exception>(
 
   @Override
   @SuppressWarnings("unchecked")
-  public <F extends Exception> AsyncScope<R, F> recover(ExceptionHandler<? super E, ? extends R, ? extends F> handler) {
+  public <F extends Exception> AsyncScope2<R, F> recover(ExceptionHandler<? super E, ? extends R, ? extends F> handler) {
     Objects.requireNonNull(handler);
     if (executorService.isShutdown()) {
       throw new IllegalStateException("result already called");
@@ -134,11 +134,11 @@ record AsyncScopeImpl<R, E extends Exception>(
     if (this.handler != null) {
       throw new IllegalStateException("handler already set");
     }
-    return new AsyncScopeImpl<>(executorService, completionService, futures, (ExceptionHandler<Exception, ? extends R, ? extends F>) handler, deadline);
+    return new AsyncScope2Impl<>(executorService, completionService, futures, (ExceptionHandler<Exception, ? extends R, ? extends F>) handler, deadline);
   }
 
   @Override
-  public AsyncScope<R, E> deadline(Instant deadline) {
+  public AsyncScope2<R, E> deadline(Instant deadline) {
     Objects.requireNonNull(deadline);
     if (executorService.isShutdown()) {
       throw new IllegalStateException("result already called");
@@ -146,7 +146,7 @@ record AsyncScopeImpl<R, E extends Exception>(
     if (this.deadline != null) {
       throw new IllegalStateException("deadline already set");
     }
-    return new AsyncScopeImpl<>(executorService, completionService, futures, handler, deadline);
+    return new AsyncScope2Impl<>(executorService, completionService, futures, handler, deadline);
   }
 
   @Override

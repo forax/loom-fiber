@@ -1,6 +1,7 @@
-package fr.umlv.loom.structured;
+package fr.umlv.loom.oldstructured;
 
-import fr.umlv.loom.structured.AsyncScope.DeadlineException;
+import fr.umlv.loom.oldstructured.AsyncScope2;
+import fr.umlv.loom.oldstructured.AsyncScope2.DeadlineException;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -12,7 +13,7 @@ import java.util.Objects;
 import java.util.Random;
 import java.util.stream.Stream;
 
-public final class AsyncScopeExampleTest {
+public final class AsyncScope2ExampleTest {
   sealed interface TravelItem permits Weather, Quotation {}
   record Weather(String source, String text) implements TravelItem { }
   record Quotation(String source, int price) implements TravelItem {}
@@ -21,7 +22,7 @@ public final class AsyncScopeExampleTest {
 
   private Quotation quotation() throws InterruptedException {
     var random = new Random();
-    try (var quotationScope = AsyncScope.<Quotation, IOException>unordered()) {
+    try (var quotationScope = AsyncScope2.<Quotation, IOException>unordered()) {
       quotationScope.async(() -> {
         Thread.sleep(random.nextInt(20, 120));
         return new Quotation("QA", random.nextInt(50, 100));
@@ -40,7 +41,7 @@ public final class AsyncScopeExampleTest {
 
   private Weather weather() throws InterruptedException {
     var random = new Random();
-    try (var weatherScope = AsyncScope.<Weather, RuntimeException>unordered()) {
+    try (var weatherScope = AsyncScope2.<Weather, RuntimeException>unordered()) {
       weatherScope.async(() -> {
         Thread.sleep(random.nextInt(50, 100));
         return new Weather("WA", "Cloudy");
@@ -60,7 +61,7 @@ public final class AsyncScopeExampleTest {
   @Test
   public void travelAgency() throws InterruptedException {
     List<TravelItem> travelItems;
-    try(var travelScope = AsyncScope.<TravelItem, RuntimeException>unordered()) {
+    try(var travelScope = AsyncScope2.<TravelItem, RuntimeException>unordered()) {
       travelScope.async(this::quotation);
       travelScope.async(this::weather);
 
