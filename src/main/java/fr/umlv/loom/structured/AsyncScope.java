@@ -4,8 +4,11 @@ import jdk.incubator.concurrent.StructuredTaskScope;
 
 import java.util.Objects;
 import java.util.Spliterator;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.BinaryOperator;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -18,9 +21,10 @@ public class AsyncScope<R, E extends Exception> implements AutoCloseable {
     R compute() throws E, InterruptedException;
   }
 
-  public interface AsyncTask<R, E extends Exception> {
+  public interface AsyncTask<R, E extends Exception> extends Future<R> {
     Result<R, E> result();
-    R success() throws E, InterruptedException;
+
+    R getNow() throws E, InterruptedException;
   }
 
   public sealed interface Result<R, E extends Exception> {
@@ -59,17 +63,25 @@ public class AsyncScope<R, E extends Exception> implements AutoCloseable {
     }
   }
 
+  private final Thread ownerThread;
   private final StructuredTaskScope<R> taskScope;
   private final LinkedBlockingQueue<Future<R>> futures = new LinkedBlockingQueue<>();
   private int tasks;
 
   public AsyncScope() {
+    this.ownerThread = Thread.currentThread();
     this.taskScope = new StructuredTaskScope<>() {
       @Override
       protected void handleComplete(Future<R> future) {
         futures.add(future);
       }
     };
+  }
+
+  private void checkThread() {
+    if (ownerThread != Thread.currentThread()) {
+      throw new WrongThreadException();
+    }
   }
 
   @Override
@@ -82,6 +94,32 @@ public class AsyncScope<R, E extends Exception> implements AutoCloseable {
     tasks++;
     return new AsyncTask<R, E>() {
       @Override
+      public boolean cancel(boolean mayInterruptIfRunning) {
+        throw new UnsupportedOperationException();
+      }
+
+      @Override
+      public boolean isCancelled() {
+        // FIXME why future.isCancelled() does not work here ?
+        return future.state() == State.CANCELLED;
+      }
+
+      @Override
+      public boolean isDone() {
+        return future.isDone();
+      }
+
+      @Override
+      public R get() throws InterruptedException, ExecutionException {
+        return future.get();
+      }
+
+      @Override
+      public R get(long timeout, TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException {
+        return future.get(timeout, unit);
+      }
+
+      @Override
       public Result<R, E> result() {
         if (!future.isDone()) {
           throw new IllegalStateException("Task has not completed");
@@ -90,7 +128,7 @@ public class AsyncScope<R, E extends Exception> implements AutoCloseable {
       }
 
       @Override
-      public R success() throws E, InterruptedException {
+      public R getNow() throws E, InterruptedException {
         if (!future.isDone()) {
           throw new IllegalStateException("Task has not completed");
         }
@@ -114,13 +152,15 @@ public class AsyncScope<R, E extends Exception> implements AutoCloseable {
   }
 
   public void awaitAll() throws InterruptedException {
+    checkThread();
     taskScope.join();
+    taskScope.shutdown();
   }
 
   private final class ResultSpliterator implements Spliterator<Result<R,E>> {
     @Override
     public boolean tryAdvance(Consumer<? super Result<R, E>> action) {
-      //TODO do a current thread check here too
+      checkThread();
       if (tasks == 0) {
         return false;
       }
@@ -143,7 +183,7 @@ public class AsyncScope<R, E extends Exception> implements AutoCloseable {
 
     @Override
     public long estimateSize() {
-      //TODO do a current thread check here too
+      checkThread();
       return tasks;
     }
 
@@ -154,7 +194,7 @@ public class AsyncScope<R, E extends Exception> implements AutoCloseable {
   }
 
   public <V> V await(Function<? super Stream<Result<R,E>>, ? extends V> streamMapper) throws InterruptedException {
-    //TODO: check the current thread like in joinAll() here !
+    checkThread();
     var stream = StreamSupport.stream(new ResultSpliterator(), false);
     var value = streamMapper.apply(stream);
     if (Thread.interrupted()) {

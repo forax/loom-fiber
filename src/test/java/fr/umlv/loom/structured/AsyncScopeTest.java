@@ -22,13 +22,13 @@ public class AsyncScopeTest {
 
       scope.awaitAll();
 
-      int value = task.success();
+      int value = task.getNow();
       assertEquals(10, value);
     }
   }
 
   @Test
-  public void oneTaskResultSucess() throws InterruptedException{
+  public void oneTaskResultSuccess() throws InterruptedException{
     try(var scope = new AsyncScope<Integer, RuntimeException>()) {
       var task = scope.async(() -> {
         Thread.sleep(100);
@@ -55,7 +55,7 @@ public class AsyncScopeTest {
 
       scope.awaitAll();
 
-      assertThrows(IOException.class, task::success);
+      assertThrows(IOException.class, task::getNow);
     }
   }
 
@@ -92,8 +92,8 @@ public class AsyncScopeTest {
 
       scope.awaitAll();
 
-      int value = task.success();
-      int value2 = task2.success();
+      int value = task.getNow();
+      int value2 = task2.getNow();
       assertEquals(40, value + value2);
     }
   }
@@ -112,8 +112,8 @@ public class AsyncScopeTest {
 
       scope.awaitAll();
 
-      assertEquals(10, task.success());
-      assertThrows(IOException.class, task2::success);
+      assertEquals(10, task.getNow());
+      assertThrows(IOException.class, task2::getNow);
     }
   }
 
@@ -150,11 +150,13 @@ public class AsyncScopeTest {
 
       int value = scope.await(stream -> stream.flatMap(Result::withOnlySuccess).findFirst()).orElseThrow();
       assertEquals(10, value);
+      assertEquals(10, task.getNow());
+      assertTrue(task2.isCancelled());
     }
   }
 
   @Test
-  public void manyTasksFailureShortCircuitStream() throws InterruptedException {
+  public void manyTasksFailureShortCircuitStream() throws InterruptedException, IOException {
     try(var scope = new AsyncScope<Integer, IOException>()) {
       var task = scope.async(() -> {
         Thread.sleep(100);
@@ -167,6 +169,8 @@ public class AsyncScopeTest {
 
       int value = scope.await(stream -> stream.flatMap(Result::withOnlySuccess).findFirst()).orElseThrow();
       assertEquals(10, value);
+      assertEquals(10, task.getNow());
+      assertTrue(task2.isCancelled());
     }
   }
 
@@ -245,7 +249,7 @@ public class AsyncScopeTest {
 
       var result = scope.await(stream -> stream.reduce(Result.merger(Integer::sum))).orElseThrow();
       switch (result) {
-        case Failure failure -> assertTrue(failure.exception() instanceof IOException);
+        case Failure failure -> assertTrue(failure.exception() instanceof IOException e && e.getMessage().equals("oops"));
         default -> fail();
       }
     }
