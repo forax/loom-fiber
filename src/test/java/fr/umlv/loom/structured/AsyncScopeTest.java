@@ -39,7 +39,7 @@ public class AsyncScopeTest {
 
       var result = task.result();
       switch (result) {
-        case Success<Integer> success -> {}
+        case Success success -> {}
         default -> fail();
       }
     }
@@ -185,7 +185,7 @@ public class AsyncScopeTest {
 
       var result = scope.await(stream -> stream.reduce(Result.merger(Integer::sum))).orElseThrow();
       switch (result) {
-        case Success<Integer> success -> assertEquals(40, success.result());
+        case Success success -> assertEquals(40, success.result());
         default -> fail();
       }
     }

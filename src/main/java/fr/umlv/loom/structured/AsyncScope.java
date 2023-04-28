@@ -35,23 +35,23 @@ public class AsyncScope<R, E extends Exception> implements AutoCloseable {
     static <R, E extends Exception> BinaryOperator<Result<R,E>> merger(BinaryOperator<R> successMerger) {
       return (result1, result2) -> switch (result1) {
         case Canceled canceled1 -> result2;
-        case Success success1 -> (Result<R,E>) switch (result2) {
+        case Success<?> success1 -> (Result<R,E>) switch (result2) {
           case Canceled canceled2 -> success1;
-          case Failure failure -> success1;
-          case Success success2 -> new Success<R>(successMerger.apply((R) success1.result, (R) success2.result));
+          case Failure<?> failure -> success1;
+          case Success<?> success2 -> new Success<>(successMerger.apply((R) success1.result, (R) success2.result));
         };
         case Failure<?> failure -> (Result<R,E>) switch (result2) {
           case Canceled canceled2 -> failure;
-          case Failure failure2 -> {
+          case Failure<?> failure2 -> {
             failure.exception.addSuppressed(failure2.exception);
             yield failure;
           }
-          case Success success2 -> success2;
+          case Success<?> success2 -> success2;
         };
       };
     }
   }
-  public record Success<R>(R result) implements Result<R, RuntimeException> {}
+  public record Success<R>(R result) implements Result<R, Exception> {}
   public record Canceled() implements Result<Void, RuntimeException> {}
   public record Failure<E extends Exception>(E exception) implements Result<Void, E> {
     public Failure {
