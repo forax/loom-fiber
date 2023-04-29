@@ -130,7 +130,7 @@ public class AsyncScopeTest {
         return 10;
       });
 
-      List<Integer> values = scope.await(stream -> stream.flatMap(Result::withOnlySuccess).toList());
+      List<Integer> values = scope.await(stream -> stream.flatMap(Result::keepOnlySuccess).toList());
       assertEquals(List.of(10, 30), values);
     }
   }
@@ -148,7 +148,7 @@ public class AsyncScopeTest {
         return 30;
       });
 
-      int value = scope.await(stream -> stream.flatMap(Result::withOnlySuccess).findFirst()).orElseThrow();
+      int value = scope.await(stream -> stream.flatMap(Result::keepOnlySuccess).findFirst()).orElseThrow();
       assertEquals(10, value);
       assertEquals(10, task.getNow());
       assertTrue(task2.isCancelled());
@@ -167,7 +167,7 @@ public class AsyncScopeTest {
         throw new IOException("oops");
       });
 
-      int value = scope.await(stream -> stream.flatMap(Result::withOnlySuccess).findFirst()).orElseThrow();
+      int value = scope.await(stream -> stream.flatMap(Result::keepOnlySuccess).findFirst()).orElseThrow();
       assertEquals(10, value);
       assertEquals(10, task.getNow());
       assertTrue(task2.isCancelled());
