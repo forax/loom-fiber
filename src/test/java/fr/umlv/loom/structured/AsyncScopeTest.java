@@ -5,9 +5,9 @@ import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.concurrent.Future;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class AsyncScopeTest {
 
@@ -38,9 +38,30 @@ public class AsyncScopeTest {
 
       var result = task.result();
       switch (result.state()) {
-        case SUCCESS -> {}
-        case CANCELLED, FAILED -> fail();
+        case SUCCESS -> assertEquals(10, result.result());
+        case FAILED -> fail();
       }
+    }
+  }
+
+  @Test
+  public void oneTaskResultSuccess2() throws InterruptedException{
+    try(var scope = new AsyncScope<Integer, RuntimeException>()) {
+      var task = scope.async(() -> {
+        Thread.sleep(100);
+        return 10;
+      });
+
+      scope.awaitAll();
+
+      assertAll(
+          () -> assertEquals(10, task.getNow()),
+          () -> assertEquals(10, task.result().getNow()),
+          () -> assertEquals(Result.State.SUCCESS, task.result().state()),
+          () -> assertTrue(task.result().isSuccess()),
+          () -> assertFalse(task.result().isFailed()),
+          () -> assertEquals(10, task.result().result())
+      );
     }
   }
 
@@ -54,7 +75,14 @@ public class AsyncScopeTest {
 
       scope.awaitAll();
 
-      assertThrows(IOException.class, task::getNow);
+      assertAll(
+          () -> assertThrows(IOException.class, task::getNow),
+          () -> assertThrows(IOException.class, () -> task.result().getNow()),
+          () -> assertEquals(Result.State.FAILED, task.result().state()),
+          () -> assertFalse(task.result().isSuccess()),
+          () -> assertTrue(task.result().isFailed()),
+          () -> assertTrue(task.result().failure() instanceof IOException)
+      );
     }
   }
 
@@ -70,8 +98,8 @@ public class AsyncScopeTest {
 
       var result = task.result();
       switch (result.state()) {
-        case FAILED-> {}  // should not be a raw parameter
-        case SUCCESS, CANCELLED -> fail();
+        case FAILED -> assertThrows(IOException.class, task::getNow);
+        case SUCCESS -> fail();
       }
     }
   }
@@ -150,7 +178,7 @@ public class AsyncScopeTest {
       int value = scope.await(stream -> stream.flatMap(Result::keepOnlySuccess).findFirst()).orElseThrow();
       assertEquals(10, value);
       assertEquals(10, task.getNow());
-      assertFalse(task2.result().state() == Result.State.SUCCESS);
+      assertTrue(task2.result().isCancelled());
     }
   }
 
@@ -169,7 +197,7 @@ public class AsyncScopeTest {
       int value = scope.await(stream -> stream.flatMap(Result::keepOnlySuccess).findFirst()).orElseThrow();
       assertEquals(10, value);
       assertEquals(10, task.getNow());
-      assertFalse(task2.result().state() == Result.State.SUCCESS);
+      assertTrue(task2.result().isCancelled());
     }
   }
 
@@ -189,7 +217,7 @@ public class AsyncScopeTest {
       var result = scope.await(stream -> stream.reduce(Result.merger(Integer::sum))).orElseThrow();
       switch (result.state()) {
         case SUCCESS -> assertEquals(40, result.result());
-        case CANCELLED, FAILED -> fail();
+        case FAILED -> fail();
       }
     }
   }
@@ -209,7 +237,7 @@ public class AsyncScopeTest {
       var result = scope.await(stream -> stream.reduce(Result.merger(Integer::sum))).orElseThrow();
       switch (result.state()) {
         case SUCCESS -> assertEquals(10, result.result());
-        case CANCELLED, FAILED -> fail();
+        case FAILED -> fail();
       }
     }
   }
@@ -229,7 +257,7 @@ public class AsyncScopeTest {
       var result = scope.await(stream -> stream.reduce(Result.merger(Integer::sum))).orElseThrow();
       switch (result.state()) {
         case SUCCESS -> assertEquals(10, result.result());
-        case CANCELLED, FAILED -> fail();
+        case FAILED -> fail();
       }
     }
   }
@@ -249,7 +277,7 @@ public class AsyncScopeTest {
       var result = scope.await(stream -> stream.reduce(Result.merger(Integer::sum))).orElseThrow();
       switch (result.state()) {
         case FAILED -> assertTrue(result.failure() instanceof IOException e && e.getMessage().equals("oops"));
-        case SUCCESS, CANCELLED -> fail();
+        case SUCCESS -> fail();
       }
     }
   }

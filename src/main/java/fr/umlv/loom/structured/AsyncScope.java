@@ -46,7 +46,7 @@ public class AsyncScope<R, E extends Exception> implements AutoCloseable {
      * Returns the value of the computation
      * @return the value of the computation
      * @throws E the exception thrown by the computation
-     * @throws InterruptedException if the task was interrupted or cancelled.
+     * @throws InterruptedException if the task was cancelled.
      * @throws IllegalStateException if the computation is not done.
      */
     R getNow() throws E, InterruptedException;
@@ -65,10 +65,6 @@ public class AsyncScope<R, E extends Exception> implements AutoCloseable {
        */
       SUCCESS,
       /**
-       * If the computation is cancelled.
-       */
-      CANCELLED,
-      /**
        * If the computation failed because an exception is thrown
        */
       FAILED
@@ -76,7 +72,7 @@ public class AsyncScope<R, E extends Exception> implements AutoCloseable {
 
     private final State state;
     private final R result;
-    private final E failure;
+    private final E failure;  // or null if cancelled
 
     private Result(State state, R result, E failure) {
       this.state = state;
@@ -107,7 +103,7 @@ public class AsyncScope<R, E extends Exception> implements AutoCloseable {
     /**
      * Returns the failure thrown by the computation.
      * @throws IllegalStateException if the state is not {@link State#FAILED}.
-     * @return the failure thrown by the computation.
+     * @return the failure thrown by the computation or null if the task has been cancelled.
      */
     public E failure() {
       if (state != State.FAILED) {
@@ -120,26 +116,44 @@ public class AsyncScope<R, E extends Exception> implements AutoCloseable {
      * Returns the value of the computation
      * @return the value of the computation
      * @throws E the exception thrown by the computation
-     * @throws InterruptedException if the task was interrupted or cancelled
+     * @throws InterruptedException if the task was cancelled
      */
     public R getNow() throws E, InterruptedException {
       return switch (state) {
         case SUCCESS -> result;
-        case CANCELLED -> throw new InterruptedException();
-        case FAILED -> throw failure;
+        case FAILED -> {
+          if (failure == null) {
+            throw new InterruptedException();
+          }
+          throw failure;
+        }
       };
     }
 
+    public boolean isSuccess() {
+      return state == State.SUCCESS;
+    }
+
+    public boolean isFailed() {
+      return state == State.FAILED;
+    }
+
+    public boolean isCancelled() {
+      if (state != State.FAILED) {
+        throw new IllegalStateException("state not a failure");
+      }
+      return failure == null;
+    }
+
     /**
-     * Returns a stream either empty if the computation failed or was cancelled
-     * or a stream with one value, the result of the computation.
-     * @return a stream either empty if the computation failed or was cancelled
-     *         or a stream with one value, the result of the computation.
+     * Returns either an empty stream either if the computation failed
+     * or if the computation succeed a stream with one value, the result of the computation.
+     * @return either an empty stream if the computation failed or a stream with the result of the computation.
      */
     public Stream<R> keepOnlySuccess() {
       return switch (state) {
         case SUCCESS -> Stream.of(result);
-        case CANCELLED, FAILED -> Stream.empty();
+        case FAILED -> Stream.empty();
       };
     }
 
@@ -148,8 +162,7 @@ public class AsyncScope<R, E extends Exception> implements AutoCloseable {
      * If the two results are both success, the success merger is called, if the two results
      * are both failures the first one is returned, the second exception is added as
      * {@link Throwable#addSuppressed(Throwable) suppressed exception}.
-     * If the two results does not have the same type, a success is preferred to a failure,
-     * a failure is preferred to a cancellation.
+     * If the two results does not have the same type, a success is preferred to a failure.
      *
      * @param successMerger a binary function to merge to results
      * @return a binary function to {@link Stream#reduce(BinaryOperator)} two results.
@@ -158,14 +171,12 @@ public class AsyncScope<R, E extends Exception> implements AutoCloseable {
      */
     static <R, E extends Exception> BinaryOperator<Result<R,E>> merger(BinaryOperator<R> successMerger) {
       return (result1, result2) -> switch (result1.state) {
-        case CANCELLED -> result2;
         case SUCCESS -> switch (result2.state) {
           case SUCCESS -> new Result<>(State.SUCCESS, successMerger.apply(result1.result, result2.result), null);
-          case CANCELLED, FAILED -> result1;
+          case FAILED -> result1;
         };
         case FAILED -> switch (result2.state) {
           case SUCCESS -> result2;
-          case CANCELLED -> result1;
           case FAILED -> {
             result1.failure.addSuppressed(result2.failure);
             yield result1;
@@ -214,7 +225,7 @@ public class AsyncScope<R, E extends Exception> implements AutoCloseable {
   public AsyncTask<R, E> async(Computation<? extends R, ? extends E> computation) {
     var future = taskScope.<R>fork(computation::compute);
     tasks++;
-    return new AsyncTask<R, E>() {
+    return new AsyncTask<>() {
       @Override
       public Result<R, E> result() {
         if (!future.isDone()) {
@@ -231,8 +242,14 @@ public class AsyncScope<R, E extends Exception> implements AutoCloseable {
         return switch (future.state()) {
           case RUNNING -> throw new AssertionError();
           case SUCCESS -> future.resultNow();
-          case FAILED -> throw (E) future.exceptionNow();
           case CANCELLED -> throw new InterruptedException();
+          case FAILED -> {
+            var throwable = future.exceptionNow();
+            if (throwable instanceof InterruptedException e) {
+              throw e;
+            }
+            throw (E) throwable;
+          }
         };
       }
     };
@@ -242,8 +259,11 @@ public class AsyncScope<R, E extends Exception> implements AutoCloseable {
     return switch (future.state()) {
       case RUNNING -> throw new AssertionError();
       case SUCCESS -> new Result<>(Result.State.SUCCESS, future.resultNow(), null);
-      case CANCELLED -> new Result<>(Result.State.CANCELLED, null, null);
-      case FAILED -> new Result<>(Result.State.FAILED, null, (E) future.exceptionNow());
+      case CANCELLED -> new Result<>(Result.State.FAILED, null, null);
+      case FAILED -> {
+        var throwable = future.exceptionNow();
+        yield new Result<>(Result.State.FAILED, null, throwable instanceof InterruptedException ? null: (E) throwable);
+      }
     };
   }
 
@@ -270,6 +290,7 @@ public class AsyncScope<R, E extends Exception> implements AutoCloseable {
         future = futures.take();
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
+        tasks = 0;
         return false;
       }
       action.accept(toResult(future));
@@ -296,8 +317,7 @@ public class AsyncScope<R, E extends Exception> implements AutoCloseable {
 
   /**
    * Awaits until the stream of {@link Result results} finished.
-   * If the stream sent to the stream mapper is short-circuited then the non-finished tasks will be shutdown
-   * resulting on them being either in state cancelled or failed.
+   * If the stream sent to the stream mapper is short-circuited then the non-finished tasks will be cancelled.
    *
    * @param streamMapper a function that takes a stream of results and transform it to a value.
    * @return the result the stream mapper function.
