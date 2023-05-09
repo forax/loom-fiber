@@ -11,7 +11,7 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
-public class AsyncScope<R, E extends Exception> implements AutoCloseable {
+public final class AsyncScope<R, E extends Exception> implements AutoCloseable {
   /**
    * A callable that propagates the checked exceptions
    * @param <R> type of the result
