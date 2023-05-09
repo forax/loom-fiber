@@ -1,8 +1,6 @@
 package fr.umlv.loom.structured;
 
-import fr.umlv.loom.structured.AsyncScope.Failure;
 import fr.umlv.loom.structured.AsyncScope.Result;
-import fr.umlv.loom.structured.AsyncScope.Success;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -38,9 +36,9 @@ public class AsyncScopeTest {
       scope.awaitAll();
 
       var result = task.result();
-      switch (result) {
-        case Success success -> {}
-        default -> fail();
+      switch (result.state()) {
+        case SUCCESS -> {}
+        case CANCELLED, FAILED -> fail();
       }
     }
   }
@@ -70,9 +68,9 @@ public class AsyncScopeTest {
       scope.awaitAll();
 
       var result = task.result();
-      switch (result) {
-        case Failure failure-> {}  // should not be a raw parameter
-        default -> fail();
+      switch (result.state()) {
+        case FAILED-> {}  // should not be a raw parameter
+        case SUCCESS, CANCELLED -> fail();
       }
     }
   }
@@ -188,9 +186,9 @@ public class AsyncScopeTest {
       });
 
       var result = scope.await(stream -> stream.reduce(Result.merger(Integer::sum))).orElseThrow();
-      switch (result) {
-        case Success success -> assertEquals(40, success.result());
-        default -> fail();
+      switch (result.state()) {
+        case SUCCESS -> assertEquals(40, result.result());
+        case CANCELLED, FAILED -> fail();
       }
     }
   }
@@ -208,9 +206,9 @@ public class AsyncScopeTest {
       });
 
       var result = scope.await(stream -> stream.reduce(Result.merger(Integer::sum))).orElseThrow();
-      switch (result) {
-        case Success success -> assertEquals(10, success.result());
-        default -> fail();
+      switch (result.state()) {
+        case SUCCESS -> assertEquals(10, result.result());
+        case CANCELLED, FAILED -> fail();
       }
     }
   }
@@ -228,9 +226,9 @@ public class AsyncScopeTest {
       });
 
       var result = scope.await(stream -> stream.reduce(Result.merger(Integer::sum))).orElseThrow();
-      switch (result) {
-        case Success success -> assertEquals(10, success.result());
-        default -> fail();
+      switch (result.state()) {
+        case SUCCESS -> assertEquals(10, result.result());
+        case CANCELLED, FAILED -> fail();
       }
     }
   }
@@ -248,9 +246,9 @@ public class AsyncScopeTest {
       });
 
       var result = scope.await(stream -> stream.reduce(Result.merger(Integer::sum))).orElseThrow();
-      switch (result) {
-        case Failure failure -> assertTrue(failure.exception() instanceof IOException e && e.getMessage().equals("oops"));
-        default -> fail();
+      switch (result.state()) {
+        case FAILED -> assertTrue(result.failure() instanceof IOException e && e.getMessage().equals("oops"));
+        case SUCCESS, CANCELLED -> fail();
       }
     }
   }

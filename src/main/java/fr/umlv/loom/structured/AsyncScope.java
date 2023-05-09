@@ -2,7 +2,6 @@ package fr.umlv.loom.structured;
 
 import jdk.incubator.concurrent.StructuredTaskScope;
 
-import java.util.Objects;
 import java.util.Spliterator;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
@@ -58,18 +57,48 @@ public class AsyncScope<R, E extends Exception> implements AutoCloseable {
     R getNow() throws E, InterruptedException;
   }
 
-  public sealed interface Result<R, E extends Exception> {
+  public static final class Result<R, E extends Exception> {
+    public enum State { SUCCESS, CANCELLED, FAILED }
+
+    private final State state;
+    private final R result;
+    private final E failure;
+
+    private Result(State state, R result, E failure) {
+      this.state = state;
+      this.result = result;
+      this.failure = failure;
+    }
+
+    public State state() {
+      return state;
+    }
+
+    public R result() {
+      if (state != State.SUCCESS) {
+        throw new IllegalStateException("state not a success");
+      }
+      return result;
+    }
+
+    public E failure() {
+      if (state != State.FAILED) {
+        throw new IllegalStateException("state not a failure");
+      }
+      return failure;
+    }
+
     /**
      * Returns the value of the computation
      * @return the value of the computation
      * @throws E the exception thrown by the computation
      * @throws InterruptedException if the task was interrupted
      */
-    default R getNow() throws E, InterruptedException {
-      return switch (this) {
-        case Success<?> success -> (R) success.result;
-        case Canceled canceled -> throw new InterruptedException();
-        case Failure<?> failure -> throw (E) failure.exception;
+    public R getNow() throws E, InterruptedException {
+      return switch (state) {
+        case SUCCESS -> result;
+        case CANCELLED -> throw new InterruptedException();
+        case FAILED -> throw failure;
       };
     }
 
@@ -79,11 +108,10 @@ public class AsyncScope<R, E extends Exception> implements AutoCloseable {
      * @return a stream either empty if the computation failed or was cancelled
      *         or a stream with one value, the result of the computation.
      */
-    default Stream<R> keepOnlySuccess() {
-      return switch (this) {
-        case Success<?> success -> Stream.of((R) success.result);
-        case Canceled canceled -> Stream.empty();
-        case Failure<?> failure -> Stream.empty();
+    public Stream<R> keepOnlySuccess() {
+      return switch (state) {
+        case SUCCESS -> Stream.of(result);
+        case CANCELLED, FAILED -> Stream.empty();
       };
     }
 
@@ -101,48 +129,21 @@ public class AsyncScope<R, E extends Exception> implements AutoCloseable {
      * @param <E> type of the result exception
      */
     static <R, E extends Exception> BinaryOperator<Result<R,E>> merger(BinaryOperator<R> successMerger) {
-      return (result1, result2) -> switch (result1) {
-        case Canceled canceled1 -> result2;
-        case Success<?> success1 -> (Result<R,E>) switch (result2) {
-          case Canceled canceled2 -> success1;
-          case Failure<?> failure -> success1;
-          case Success<?> success2 -> new Success<>(successMerger.apply((R) success1.result, (R) success2.result));
+      return (result1, result2) -> switch (result1.state) {
+        case CANCELLED -> result2;
+        case SUCCESS -> switch (result2.state) {
+          case SUCCESS -> new Result<>(State.SUCCESS, successMerger.apply(result1.result, result2.result), null);
+          case CANCELLED, FAILED -> result1;
         };
-        case Failure<?> failure -> (Result<R,E>) switch (result2) {
-          case Canceled canceled2 -> failure;
-          case Failure<?> failure2 -> {
-            failure.exception.addSuppressed(failure2.exception);
-            yield failure;
+        case FAILED -> switch (result2.state) {
+          case SUCCESS -> result2;
+          case CANCELLED -> result1;
+          case FAILED -> {
+            result1.failure.addSuppressed(result2.failure);
+            yield result1;
           }
-          case Success<?> success2 -> success2;
         };
       };
-    }
-  }
-
-  /**
-   * A success of the {@link Computation}.
-   *
-   * @param result the resulting value of the computation.
-   *        {@code null} is allowed.
-   * @param <R> the type of the resulting value.
-   */
-  public record Success<R>(R result) implements Result<R, Exception> {}
-
-  /**
-   * A cancellation of the {@link Computation}.
-   */
-  public record Canceled() implements Result<Void, RuntimeException> {}
-
-  /**
-   * A failure of the {@link Computation}.
-   *
-   * @param exception the exception thrown by the computation
-   * @param <E> the type of the exception thrown by the computation
-   */
-  public record Failure<E extends Exception>(E exception) implements Result<Void, E> {
-    public Failure {
-      Objects.requireNonNull(exception);
     }
   }
 
@@ -238,9 +239,9 @@ public class AsyncScope<R, E extends Exception> implements AutoCloseable {
   private Result<R, E> toResult(Future<R> future) {
     return switch (future.state()) {
       case RUNNING -> throw new AssertionError();
-      case SUCCESS -> (Result<R,E>) new Success<R>(future.resultNow());
-      case FAILED -> (Result<R,E>) new Failure<E>((E) future.exceptionNow());
-      case CANCELLED -> (Result<R,E>) new Canceled();
+      case SUCCESS -> new Result<>(Result.State.SUCCESS, future.resultNow(), null);
+      case CANCELLED -> new Result<>(Result.State.CANCELLED, null, null);
+      case FAILED -> new Result<>(Result.State.FAILED, null, (E) future.exceptionNow());
     };
   }
 
