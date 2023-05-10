@@ -5,6 +5,8 @@ import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -144,6 +146,95 @@ public class AsyncScopeTest {
     }
   }
 
+  @Test
+  public void manyTasksSuccessCollector() throws InterruptedException{
+    try(var scope = new AsyncScope<Integer, RuntimeException>()) {
+      var task = scope.async(() -> {
+        Thread.sleep(100);
+        return 10;
+      });
+      var task2 = scope.async(() -> {
+        Thread.sleep(300);
+        return 30;
+      });
+
+      var result = scope.await(stream -> stream.collect(Result.toResult(Collectors.toList())));
+      assertEquals(List.of(10, 30), result.result());
+    }
+  }
+
+  @Test
+  public void manyTasksFailureCollector() throws InterruptedException{
+    try(var scope = new AsyncScope<Integer, IOException>()) {
+      var task = scope.async(() -> {
+        Thread.sleep(100);
+        throw new IOException("oops");
+      });
+      var task2 = scope.async(() -> {
+        Thread.sleep(300);
+        throw new IOException("oops2");
+      });
+
+      var result = scope.await(stream -> stream.collect(Result.toResult(Collectors.toList())));
+      assertTrue(result.failure() instanceof IOException e && e.getMessage().equals("oops"));
+    }
+  }
+
+  @Test
+  public void manyTasksMixedSuccessFailureCollector() throws InterruptedException{
+    try(var scope = new AsyncScope<Integer, IOException>()) {
+      var task = scope.async(() -> {
+        Thread.sleep(100);
+        return 10;
+      });
+      var task2 = scope.async(() -> {
+        Thread.sleep(300);
+        throw new IOException("oops2");
+      });
+
+      var result = scope.await(stream -> stream.collect(Result.toResult(Collectors.toList())));
+      assertEquals(List.of(10), result.result());
+    }
+  }
+
+  @Test
+  public void manyTasksMixedFailureSuccessCollector() throws InterruptedException{
+    try(var scope = new AsyncScope<Integer, IOException>()) {
+      var task = scope.async(() -> {
+        Thread.sleep(100);
+        throw new IOException("oops");
+      });
+      var task2 = scope.async(() -> {
+        Thread.sleep(300);
+        return 30;
+      });
+
+      var result = scope.await(stream -> stream.collect(Result.toResult(Collectors.toList())));
+      assertEquals(List.of(30), result.result());
+    }
+  }
+
+
+  @Test
+  public void manyTasksSuccessStreamToResultList() throws InterruptedException, IOException {
+    try(var scope = new AsyncScope<Integer, RuntimeException>()) {
+      var task = scope.async(() -> {
+        Thread.sleep(300);
+        return 30;
+      });
+      var task2 = scope.async(() -> {
+        Thread.sleep(100);
+        return 10;
+      });
+
+      var results = scope.await(Stream::toList);
+      var sum = 0;
+      for(var result: results) {
+        sum += result.getNow();
+      }
+      assertEquals(40, sum);
+    }
+  }
 
   @Test
   public void manyTasksSuccessStreamToList() throws InterruptedException, IOException {

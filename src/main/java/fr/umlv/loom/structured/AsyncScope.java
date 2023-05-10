@@ -2,12 +2,15 @@ package fr.umlv.loom.structured;
 
 import jdk.incubator.concurrent.StructuredTaskScope;
 
+import java.util.Objects;
 import java.util.Spliterator;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.function.BinaryOperator;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.stream.Collector;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -169,7 +172,8 @@ public final class AsyncScope<R, E extends Exception> implements AutoCloseable {
      * @param <R> type of the result value
      * @param <E> type of the result exception
      */
-    static <R, E extends Exception> BinaryOperator<Result<R,E>> merger(BinaryOperator<R> successMerger) {
+    public static <R, E extends Exception> BinaryOperator<Result<R,E>> merger(BinaryOperator<R> successMerger) {
+      Objects.requireNonNull(successMerger, "successMerger is null");
       return (result1, result2) -> switch (result1.state) {
         case SUCCESS -> switch (result2.state) {
           case SUCCESS -> new Result<>(State.SUCCESS, successMerger.apply(result1.result, result2.result), null);
@@ -183,6 +187,77 @@ public final class AsyncScope<R, E extends Exception> implements AutoCloseable {
           }
         };
       };
+    }
+
+    /**
+     * Returns a collector that collect the successful results using a downstream collector or
+     * if all results have failed keep the first failure and adds the other failure as suppressed exceptions.
+     *
+     * @param downstream a downstream collector
+     * @return a collector that collect the successful results using a downstream collector
+     *
+     * @param <R> type of successful result
+     * @param <E> type of failure exception
+     * @param <A> type of the intermediary value of the downstream collector
+     * @param <D> type of the final value of the downstream collector
+     */
+    public static <R, E extends Exception,A,D> Collector<Result<R, E>, ?, Result<D, E>> toResult(Collector<? super R, A, D> downstream) {
+      Objects.requireNonNull(downstream, "downstream collector is null");
+      var downstreamSupplier = downstream.supplier();
+      var downstreamAccumulator = downstream.accumulator();
+      //var downstreamCombiner =  downstream.combiner();
+      var downstreamFinisher = downstream.finisher();
+      class Box {  // Collector API is mutable
+        private Result<A,E> value;
+      }
+      return Collector.of(
+          Box::new,
+          (box, result) -> {
+            if (box.value == null) {  // not initialized yet !
+              switch (result.state) {
+                case SUCCESS -> {
+                  var a = downstreamSupplier.get();
+                  downstreamAccumulator.accept(a, result.result);
+                  box.value = new Result<>(State.SUCCESS, a, null);
+                }
+                case FAILED -> {
+                  box.value = (Result<A, E>) result;
+                }
+              }
+              return;
+            }
+            switch(result.state) {
+              case SUCCESS -> {
+                switch (box.value.state) {
+                  case SUCCESS -> downstreamAccumulator.accept(box.value.result, result.result);
+                  case FAILED -> {
+                    var a = downstreamSupplier.get();
+                    downstreamAccumulator.accept(a, result.result);
+                    box.value = new Result<>(State.SUCCESS, a, null);
+                  }
+                }
+              }
+              case FAILED -> {
+                switch (box.value.state) {
+                  case SUCCESS -> {}
+                  case FAILED -> box.value.failure.addSuppressed(result.failure);
+                }
+              }
+            }
+          },
+          (box1, box2) -> {
+            throw new IllegalStateException("this collector does not support parallel streams");
+          },
+          box -> {
+            if (box.value == null) {  // not initialized
+              return new Result<>(State.SUCCESS, downstreamFinisher.apply(downstreamSupplier.get()), null);
+            }
+            return switch (box.value.state) {
+              case FAILED -> (Result<D, E>) box.value;
+              case SUCCESS -> new Result<>(State.SUCCESS, downstreamFinisher.apply(box.value.result), null);
+            };
+          }
+      );
     }
   }
 
