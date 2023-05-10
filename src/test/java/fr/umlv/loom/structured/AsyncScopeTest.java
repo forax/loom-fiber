@@ -4,10 +4,14 @@ import fr.umlv.loom.structured.AsyncScope.Result;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.net.UnknownHostException;
 import java.util.List;
+import java.util.stream.Collector;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static java.util.stream.Collectors.partitioningBy;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -214,6 +218,24 @@ public class AsyncScopeTest {
     }
   }
 
+  @Test
+  public void manyTasksPartition() throws InterruptedException{
+    try(var scope = new AsyncScope<Integer, IOException>()) {
+      var task = scope.async(() -> {
+        Thread.sleep(100);
+        throw new IOException("oops");
+      });
+      var task2 = scope.async(() -> {
+        Thread.sleep(300);
+        return 30;
+      });
+
+      var partition = scope.await(stream -> stream.collect(partitioningBy(Result::isSuccess)));
+      assertEquals(List.of(30), partition.get(true).stream().map(Result::result).toList());
+      assertEquals(List.of("oops"), partition.get(false).stream().map(r -> r.failure().getMessage()).toList());
+    }
+  }
+
 
   @Test
   public void manyTasksSuccessStreamToResultList() throws InterruptedException, IOException {
@@ -369,6 +391,62 @@ public class AsyncScopeTest {
       switch (result.state()) {
         case FAILED -> assertTrue(result.failure() instanceof IOException e && e.getMessage().equals("oops"));
         case SUCCESS -> fail();
+      }
+    }
+  }
+
+  // var list = new ArrayList<Result>();
+  //  var error = (IOException) null;
+  //  for(...) {
+  //    Result result;
+  //    try {
+  //      result = synchronousCall(...);
+  //    } catch(UnknownHostException e) {
+  //      throw ... (e);
+  //    } catch(IOException e) {
+  //      if (error == null) {
+  //        error = e;  // just record the error
+  //      }
+  //      continue;
+  //    }
+  //    if (valid(result)) {
+  //      list.add(result);
+  //      if (list.size() == 3) {
+  //        break;
+  //      }
+  //    }
+  //  }
+  //  if (list.isEmpty()) {
+  //    throw ... (error);
+  //  }
+  //  ...
+  @Test
+  public void complexShortCircuitExample() throws InterruptedException {
+    try(var scope = new AsyncScope<Integer, IOException>()) {
+      for(var i = 0; i < 30; i++) {
+        var id = i;
+        scope.async(() -> {
+          Thread.sleep(100 + id * 100);
+          if (id % 2 == 0) {
+            throw new IOException("oops " + id);
+            //throw new UnknownHostException("oops");
+          }
+          return id;
+        });
+      }
+      var box = new Object() { int counter; };
+      var result = scope.await(stream -> stream
+              .peek(r -> {
+                if (r.isFailed() && r.failure() instanceof UnknownHostException e) {
+                  throw new UncheckedIOException(e);
+                }
+              })
+              .filter(r -> r.isFailed() || r.result() % 3 == 1)
+              .takeWhile(r -> r.isFailed() || box.counter++ < 3)
+              .collect(Result.toResult(Collectors.toList())));
+      switch (result.state()) {
+        case FAILED -> assertTrue(result.failure() instanceof IOException e && e.getMessage().equals("oops 0"));
+        case SUCCESS -> assertEquals(List.of(1, 7, 13), result.result());
       }
     }
   }
