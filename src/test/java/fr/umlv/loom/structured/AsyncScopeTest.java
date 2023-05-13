@@ -27,46 +27,11 @@ public class AsyncScopeTest {
 
       scope.awaitAll();
 
-      int value = task.getNow();
-      assertEquals(10, value);
-    }
-  }
-
-  @Test
-  public void oneTaskResultSuccess() throws InterruptedException{
-    try(var scope = new AsyncScope<Integer, RuntimeException>()) {
-      var task = scope.async(() -> {
-        Thread.sleep(100);
-        return 10;
-      });
-
-      scope.awaitAll();
-
-      var result = task.result();
-      switch (result.state()) {
-        case SUCCESS -> assertEquals(10, result.result());
-        case FAILED -> fail();
-      }
-    }
-  }
-
-  @Test
-  public void oneTaskResultSuccess2() throws InterruptedException{
-    try(var scope = new AsyncScope<Integer, RuntimeException>()) {
-      var task = scope.async(() -> {
-        Thread.sleep(100);
-        return 10;
-      });
-
-      scope.awaitAll();
-
       assertAll(
+          () -> assertEquals(AsyncScope.TaskHandle.State.SUCCESS, task.state()),
           () -> assertEquals(10, task.getNow()),
-          () -> assertEquals(10, task.result().getNow()),
-          () -> assertEquals(Result.State.SUCCESS, task.result().state()),
-          () -> assertTrue(task.result().isSuccess()),
-          () -> assertFalse(task.result().isFailed()),
-          () -> assertEquals(10, task.result().result())
+          () -> assertEquals(10, task.get()),
+          () -> assertThrows(IllegalStateException.class, task::exception)
       );
     }
   }
@@ -83,30 +48,10 @@ public class AsyncScopeTest {
 
       assertAll(
           () -> assertThrows(IOException.class, task::getNow),
-          () -> assertThrows(IOException.class, () -> task.result().getNow()),
-          () -> assertEquals(Result.State.FAILED, task.result().state()),
-          () -> assertFalse(task.result().isSuccess()),
-          () -> assertTrue(task.result().isFailed()),
-          () -> assertTrue(task.result().failure() instanceof IOException)
+          () -> assertThrows(IllegalStateException.class, task::get),
+          () -> assertEquals(AsyncScope.TaskHandle.State.FAILED, task.state()),
+          () -> assertTrue(task.exception() instanceof IOException)
       );
-    }
-  }
-
-  @Test
-  public void oneTaskResultFailures() throws InterruptedException{
-    try(var scope = new AsyncScope<Object, IOException>()) {
-      var task = scope.async(() -> {
-        Thread.sleep(100);
-        throw new IOException("oops");
-      });
-
-      scope.awaitAll();
-
-      var result = task.result();
-      switch (result.state()) {
-        case FAILED -> assertThrows(IOException.class, task::getNow);
-        case SUCCESS -> fail();
-      }
     }
   }
 
@@ -291,7 +236,7 @@ public class AsyncScopeTest {
       int value = scope.await(stream -> stream.flatMap(Result::keepOnlySuccess).findFirst()).orElseThrow();
       assertEquals(10, value);
       assertEquals(10, task.getNow());
-      assertTrue(task2.result().isCancelled());
+      assertEquals(AsyncScope.TaskHandle.State.CANCELLED, task2.state());
     }
   }
 
@@ -310,7 +255,7 @@ public class AsyncScopeTest {
       int value = scope.await(stream -> stream.flatMap(Result::keepOnlySuccess).findFirst()).orElseThrow();
       assertEquals(10, value);
       assertEquals(10, task.getNow());
-      assertTrue(task2.result().isCancelled());
+      assertEquals(AsyncScope.TaskHandle.State.CANCELLED, task2.state());
     }
   }
 
