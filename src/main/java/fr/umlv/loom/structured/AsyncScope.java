@@ -49,10 +49,16 @@ public final class AsyncScope<R, E extends Exception> implements AutoCloseable {
      * Returns the value of the computation
      * @return the value of the computation
      * @throws E the exception thrown by the computation
-     * @throws InterruptedException if the task was cancelled.
+     * @throws CancelledException if the task was cancelled.
      * @throws IllegalStateException if the computation is not done.
      */
-    R getNow() throws E, InterruptedException;
+    R getNow() throws E, CancelledException;
+  }
+
+  public static final class CancelledException extends RuntimeException {
+    private CancelledException() {
+      super(null, null, false, false);
+    }
   }
 
   /**
@@ -75,7 +81,7 @@ public final class AsyncScope<R, E extends Exception> implements AutoCloseable {
 
     private final State state;
     private final R result;
-    private final E failure;  // or null if cancelled
+    private final E failure;  // or null if cancelled or interrupted
 
     private Result(State state, R result, E failure) {
       this.state = state;
@@ -106,11 +112,14 @@ public final class AsyncScope<R, E extends Exception> implements AutoCloseable {
     /**
      * Returns the failure thrown by the computation.
      * @throws IllegalStateException if the state is not {@link State#FAILED}.
-     * @return the failure thrown by the computation or null if the task has been cancelled.
+     * @return the failure thrown by the computation or null if the task has been cancelled or interrupted.
      */
     public E failure() {
       if (state != State.FAILED) {
         throw new IllegalStateException("state not a failure");
+      }
+      if (failure instanceof InterruptedException) {
+        return null;
       }
       return failure;
     }
@@ -119,14 +128,14 @@ public final class AsyncScope<R, E extends Exception> implements AutoCloseable {
      * Returns the value of the computation
      * @return the value of the computation
      * @throws E the exception thrown by the computation
-     * @throws InterruptedException if the task was cancelled
+     * @throws CancelledException if the task was cancelled or interrupted
      */
-    public R getNow() throws E, InterruptedException {
+    public R getNow() throws E, CancelledException {
       return switch (state) {
         case SUCCESS -> result;
         case FAILED -> {
           if (failure == null) {
-            throw new InterruptedException();
+            throw new CancelledException();
           }
           throw failure;
         }
@@ -310,18 +319,18 @@ public final class AsyncScope<R, E extends Exception> implements AutoCloseable {
       }
 
       @Override
-      public R getNow() throws E, InterruptedException {
+      public R getNow() throws E, CancelledException {
         if (!future.isDone()) {
           throw new IllegalStateException("Task is not completed");
         }
         return switch (future.state()) {
           case RUNNING -> throw new AssertionError();
           case SUCCESS -> future.resultNow();
-          case CANCELLED -> throw new InterruptedException();
+          case CANCELLED -> throw new CancelledException();
           case FAILED -> {
             var throwable = future.exceptionNow();
-            if (throwable instanceof InterruptedException e) {
-              throw e;
+            if (throwable instanceof InterruptedException) {
+              throw new CancelledException();
             }
             throw (E) throwable;
           }
