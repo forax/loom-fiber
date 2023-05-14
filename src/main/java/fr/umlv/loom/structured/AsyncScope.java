@@ -20,14 +20,14 @@ public final class AsyncScope<T, E extends Exception> implements AutoCloseable {
    * @param <E> type of the checked exception, uses {@code RuntimeException} otherwise.
    */
   @FunctionalInterface
-  public interface Computation<T, E extends Exception> {
+  public interface Invokable<T, E extends Exception> {
     /**
      * Compute the computation.
      * @return a result
      * @throws E an exception
      * @throws InterruptedException if the computation is interrupted or cancelled
      */
-    T compute() throws E, InterruptedException;
+    T invoke() throws E, InterruptedException;
   }
 
   /**
@@ -299,13 +299,13 @@ public final class AsyncScope<T, E extends Exception> implements AutoCloseable {
 
   /**
    * Starts an asynchronous computation on a new virtual thread.
-   * @param computation the computation to run.
+   * @param invokable the computation to run.
    * @return an asynchronous task, an object that represents the result of the computation in the future.
    *
    * @see TaskHandle#getNow()
    */
-  public TaskHandle<T, E> async(Computation<? extends T, ? extends E> computation) {
-    var future = taskScope.<T>fork(computation::compute);
+  public TaskHandle<T, E> fork(Invokable<? extends T, ? extends E> invokable) {
+    var future = taskScope.<T>fork(invokable::invoke);
     tasks++;
     return new TaskHandle<>() {
       @Override
@@ -379,11 +379,11 @@ public final class AsyncScope<T, E extends Exception> implements AutoCloseable {
   }
 
   /**
-   * Awaits for all synchronous computations started with {@link #async(Computation)} to finish.
+   * Awaits for all synchronous computations started with {@link #fork(Invokable)} to finish.
    * @throws InterruptedException if the current thread is interrupted
    * @throws WrongThreadException if this method is not called by the thread that has created this scope.
    */
-  public void awaitAll() throws InterruptedException {
+  public void joinAll() throws InterruptedException {
     checkThread();
     taskScope.join();
     taskScope.shutdown();
@@ -439,7 +439,7 @@ public final class AsyncScope<T, E extends Exception> implements AutoCloseable {
    * @throws InterruptedException if the current thread is interrupted
    * @throws WrongThreadException if this method is not called by the thread that has created this scope.
    */
-  public <V> V await(Function<? super Stream<Result<T,E>>, ? extends V> streamMapper) throws InterruptedException {
+  public <V> V join(Function<? super Stream<Result<T,E>>, ? extends V> streamMapper) throws InterruptedException {
     checkThread();
     var stream = StreamSupport.stream(new ResultSpliterator(), false);
     var value = streamMapper.apply(stream);
