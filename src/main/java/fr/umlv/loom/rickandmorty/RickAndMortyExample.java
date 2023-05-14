@@ -1,23 +1,19 @@
 package fr.umlv.loom.rickandmorty;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import fr.umlv.loom.structured.AsyncScope;
 import jdk.incubator.concurrent.StructuredTaskScope;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InterruptedIOException;
 import java.io.UncheckedIOException;
-import java.lang.reflect.UndeclaredThrowableException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
@@ -180,9 +176,9 @@ public class RickAndMortyExample {
     public static Set<Character> asyncScope() throws IOException, InterruptedException {
         Set<URI> characterURIs1, characterURIs2;
         try(var scope = new AsyncScope<Set<URI>, IOException>()) {
-            var task1 = scope.async(() -> characterOfEpisode(1));
-            var task2 = scope.async(() -> characterOfEpisode(2));
-            var errorOpt = scope.await(stream -> stream.filter(AsyncScope.Result::isFailed).findFirst());
+            var task1 = scope.fork(() -> characterOfEpisode(1));
+            var task2 = scope.fork(() -> characterOfEpisode(2));
+            var errorOpt = scope.join(stream -> stream.filter(AsyncScope.Result::isFailed).findFirst());
             if (errorOpt.isPresent()) {
                 throw errorOpt.orElseThrow().failure();
             }
@@ -193,9 +189,9 @@ public class RickAndMortyExample {
         commonCharacterURIs.retainAll(characterURIs2);
         try(var scope = new AsyncScope<Character, IOException>()) {
             for(var characterURI: commonCharacterURIs) {
-                scope.async(() -> character(characterURI));
+                scope.fork(() -> character(characterURI));
             }
-            return scope.await(stream -> stream
+            return scope.join(stream -> stream
                     .peek(r -> {
                         if (r.isFailed()) {
                             throw new UncheckedIOException(r.failure());
