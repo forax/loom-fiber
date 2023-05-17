@@ -2,6 +2,8 @@ package fr.umlv.loom.structured;
 
 import jdk.incubator.concurrent.StructuredTaskScope;
 
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.VarHandle;
 import java.util.Objects;
 import java.util.Spliterator;
 import java.util.concurrent.Future;
@@ -248,7 +250,16 @@ public final class StructuredScopeAsStream<T, E extends Exception> implements Au
   private final Thread ownerThread;
   private final StructuredTaskScope<T> taskScope;
   private final LinkedBlockingQueue<Future<T>> futures = new LinkedBlockingQueue<>();
-  private int tasks;
+  private volatile long tasks;
+
+  private static final VarHandle TASKS;
+  static {
+    try {
+      TASKS = MethodHandles.lookup().findVarHandle(StructuredScopeAsStream.class, "tasks", long.class);
+    } catch (NoSuchFieldException | IllegalAccessException e) {
+      throw new AssertionError(e);
+    }
+  }
 
   /**
    * Creates an asynchronous scope to manage several asynchronous computations.
@@ -283,7 +294,7 @@ public final class StructuredScopeAsStream<T, E extends Exception> implements Au
    */
   public TaskHandle<T, E> fork(Invokable<? extends T, ? extends E> invokable) {
     var future = taskScope.<T>fork(invokable::invoke);
-    tasks++;
+    TASKS.getAndAdd(this, 1);
     return new TaskHandle<>() {
       @Override
       public State state() {
@@ -344,10 +355,13 @@ public final class StructuredScopeAsStream<T, E extends Exception> implements Au
   }
 
   private final class ResultSpliterator implements Spliterator<Result<T,E>> {
+    private long index;
+
     @Override
     public boolean tryAdvance(Consumer<? super Result<T, E>> action) {
       checkThread();
-      if (tasks == 0) {
+      if (index >= tasks) {  // volatile read
+        index = Long.MAX_VALUE;
         return false;
       }
       Future<T> future;
@@ -355,14 +369,14 @@ public final class StructuredScopeAsStream<T, E extends Exception> implements Au
         future = futures.take();
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
-        tasks = 0;
+        index = Long.MAX_VALUE;
         return false;
       }
       var result = toResult(future);
       if (result != null) {
         action.accept(result);
       }
-      tasks--;
+      index++;
       return true;
     }
 
@@ -374,12 +388,15 @@ public final class StructuredScopeAsStream<T, E extends Exception> implements Au
     @Override
     public long estimateSize() {
       checkThread();
-      return tasks;
+      if (index == Long.MAX_VALUE) {
+        return 0;
+      }
+      return tasks - index;  // volatile read
     }
 
     @Override
     public int characteristics() {
-      return NONNULL | SIZED;
+      return NONNULL | SIZED | CONCURRENT;
     }
   }
 
