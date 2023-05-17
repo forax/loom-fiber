@@ -1,6 +1,6 @@
 package fr.umlv.loom.structured;
 
-import fr.umlv.loom.structured.AsyncScope.Result;
+import fr.umlv.loom.structured.StructuredScopeAsStream.Result;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -14,11 +14,11 @@ import static java.util.stream.Collectors.partitioningBy;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-public class AsyncScopeTest {
+public class StructuredScopeAsStreamTest {
 
   @Test
   public void oneTaskSuccess() throws InterruptedException{
-    try(var scope = new AsyncScope<Integer, RuntimeException>()) {
+    try(var scope = new StructuredScopeAsStream<Integer, RuntimeException>()) {
       var task = scope.fork(() -> {
         Thread.sleep(100);
         return 10;
@@ -27,17 +27,15 @@ public class AsyncScopeTest {
       scope.joinAll();
 
       assertAll(
-          () -> assertEquals(AsyncScope.TaskHandle.State.SUCCESS, task.state()),
-          () -> assertEquals(10, task.getNow()),
-          () -> assertEquals(10, task.get()),
-          () -> assertThrows(IllegalStateException.class, task::exception)
+          () -> assertEquals(StructuredScopeAsStream.TaskHandle.State.SUCCESS, task.state()),
+          () -> assertEquals(10, task.get())
       );
     }
   }
 
   @Test
   public void oneTaskFailures() throws InterruptedException{
-    try(var scope = new AsyncScope<Object, IOException>()) {
+    try(var scope = new StructuredScopeAsStream<Object, IOException>()) {
       var task = scope.fork(() -> {
         Thread.sleep(100);
         throw new IOException("oops");
@@ -46,10 +44,8 @@ public class AsyncScopeTest {
       scope.joinAll();
 
       assertAll(
-          () -> assertThrows(IOException.class, task::getNow),
-          () -> assertThrows(IllegalStateException.class, task::get),
-          () -> assertEquals(AsyncScope.TaskHandle.State.FAILED, task.state()),
-          () -> assertTrue(task.exception() instanceof IOException)
+          () -> assertThrows(IOException.class, task::get),
+          () -> assertEquals(StructuredScopeAsStream.TaskHandle.State.FAILED, task.state())
       );
     }
   }
@@ -57,7 +53,7 @@ public class AsyncScopeTest {
 
   @Test
   public void manyTasksSuccess() throws InterruptedException{
-    try(var scope = new AsyncScope<Integer, RuntimeException>()) {
+    try(var scope = new StructuredScopeAsStream<Integer, RuntimeException>()) {
       var task = scope.fork(() -> {
         Thread.sleep(100);
         return 10;
@@ -69,15 +65,15 @@ public class AsyncScopeTest {
 
       scope.joinAll();
 
-      int value = task.getNow();
-      int value2 = task2.getNow();
+      int value = task.get();
+      int value2 = task2.get();
       assertEquals(40, value + value2);
     }
   }
 
   @Test
   public void manyTasksFailure() throws InterruptedException, IOException {
-    try(var scope = new AsyncScope<Integer, IOException>()) {
+    try(var scope = new StructuredScopeAsStream<Integer, IOException>()) {
       var task = scope.fork(() -> {
         Thread.sleep(100);
         return 10;
@@ -89,14 +85,14 @@ public class AsyncScopeTest {
 
       scope.joinAll();
 
-      assertEquals(10, task.getNow());
-      assertThrows(IOException.class, task2::getNow);
+      assertEquals(10, task.get());
+      assertThrows(IOException.class, task2::get);
     }
   }
 
   @Test
   public void manyTasksSuccessCollector() throws InterruptedException{
-    try(var scope = new AsyncScope<Integer, RuntimeException>()) {
+    try(var scope = new StructuredScopeAsStream<Integer, RuntimeException>()) {
       var task = scope.fork(() -> {
         Thread.sleep(100);
         return 10;
@@ -106,14 +102,14 @@ public class AsyncScopeTest {
         return 30;
       });
 
-      var result = scope.join(stream -> stream.collect(Result.toResult(Collectors.toList())));
+      var result = scope.joinAll(stream -> stream.collect(Result.toResult(Collectors.toList())));
       assertEquals(List.of(10, 30), result.result());
     }
   }
 
   @Test
   public void manyTasksFailureCollector() throws InterruptedException{
-    try(var scope = new AsyncScope<Integer, IOException>()) {
+    try(var scope = new StructuredScopeAsStream<Integer, IOException>()) {
       var task = scope.fork(() -> {
         Thread.sleep(100);
         throw new IOException("oops");
@@ -123,14 +119,14 @@ public class AsyncScopeTest {
         throw new IOException("oops2");
       });
 
-      var result = scope.join(stream -> stream.collect(Result.toResult(Collectors.toList())));
+      var result = scope.joinAll(stream -> stream.collect(Result.toResult(Collectors.toList())));
       assertTrue(result.failure() instanceof IOException e && e.getMessage().equals("oops"));
     }
   }
 
   @Test
   public void manyTasksMixedSuccessFailureCollector() throws InterruptedException{
-    try(var scope = new AsyncScope<Integer, IOException>()) {
+    try(var scope = new StructuredScopeAsStream<Integer, IOException>()) {
       var task = scope.fork(() -> {
         Thread.sleep(100);
         return 10;
@@ -140,14 +136,14 @@ public class AsyncScopeTest {
         throw new IOException("oops2");
       });
 
-      var result = scope.join(stream -> stream.collect(Result.toResult(Collectors.toList())));
+      var result = scope.joinAll(stream -> stream.collect(Result.toResult(Collectors.toList())));
       assertEquals(List.of(10), result.result());
     }
   }
 
   @Test
   public void manyTasksMixedFailureSuccessCollector() throws InterruptedException{
-    try(var scope = new AsyncScope<Integer, IOException>()) {
+    try(var scope = new StructuredScopeAsStream<Integer, IOException>()) {
       var task = scope.fork(() -> {
         Thread.sleep(100);
         throw new IOException("oops");
@@ -157,14 +153,14 @@ public class AsyncScopeTest {
         return 30;
       });
 
-      var result = scope.join(stream -> stream.collect(Result.toResult(Collectors.toList())));
+      var result = scope.joinAll(stream -> stream.collect(Result.toResult(Collectors.toList())));
       assertEquals(List.of(30), result.result());
     }
   }
 
   @Test
   public void manyTasksPartition() throws InterruptedException{
-    try(var scope = new AsyncScope<Integer, IOException>()) {
+    try(var scope = new StructuredScopeAsStream<Integer, IOException>()) {
       var task = scope.fork(() -> {
         Thread.sleep(100);
         throw new IOException("oops");
@@ -174,7 +170,7 @@ public class AsyncScopeTest {
         return 30;
       });
 
-      var partition = scope.join(stream -> stream.collect(partitioningBy(Result::isSuccess)));
+      var partition = scope.joinAll(stream -> stream.collect(partitioningBy(Result::isSuccess)));
       assertEquals(List.of(30), partition.get(true).stream().map(Result::result).toList());
       assertEquals(List.of("oops"), partition.get(false).stream().map(r -> r.failure().getMessage()).toList());
     }
@@ -183,7 +179,7 @@ public class AsyncScopeTest {
 
   @Test
   public void manyTasksSuccessStreamToResultList() throws InterruptedException, IOException {
-    try(var scope = new AsyncScope<Integer, RuntimeException>()) {
+    try(var scope = new StructuredScopeAsStream<Integer, RuntimeException>()) {
       var task = scope.fork(() -> {
         Thread.sleep(300);
         return 30;
@@ -193,7 +189,7 @@ public class AsyncScopeTest {
         return 10;
       });
 
-      var results = scope.join(Stream::toList);
+      var results = scope.joinAll(Stream::toList);
       var sum = 0;
       for(var result: results) {
         sum += result.getNow();
@@ -204,7 +200,7 @@ public class AsyncScopeTest {
 
   @Test
   public void manyTasksSuccessStreamToList() throws InterruptedException, IOException {
-    try(var scope = new AsyncScope<Integer, RuntimeException>()) {
+    try(var scope = new StructuredScopeAsStream<Integer, RuntimeException>()) {
       var task = scope.fork(() -> {
         Thread.sleep(300);
         return 30;
@@ -214,7 +210,7 @@ public class AsyncScopeTest {
         return 10;
       });
 
-      List<Integer> values = scope.join(stream -> stream.flatMap(Result::keepOnlySuccess).toList());
+      List<Integer> values = scope.joinAll(stream -> stream.flatMap(Result::keepOnlySuccess).toList());
       assertEquals(List.of(10, 30), values);
     }
   }
@@ -222,7 +218,7 @@ public class AsyncScopeTest {
 
   @Test
   public void manyTasksSuccessShortCircuitStream() throws InterruptedException {
-    try(var scope = new AsyncScope<Integer, RuntimeException>()) {
+    try(var scope = new StructuredScopeAsStream<Integer, RuntimeException>()) {
       var task = scope.fork(() -> {
         Thread.sleep(100);
         return 10;
@@ -232,16 +228,16 @@ public class AsyncScopeTest {
         return 30;
       });
 
-      int value = scope.join(stream -> stream.flatMap(Result::keepOnlySuccess).findFirst()).orElseThrow();
+      int value = scope.joinAll(stream -> stream.flatMap(Result::keepOnlySuccess).findFirst()).orElseThrow();
       assertEquals(10, value);
-      assertEquals(10, task.getNow());
-      assertEquals(AsyncScope.TaskHandle.State.CANCELLED, task2.state());
+      assertEquals(10, task.get());
+      assertEquals(StructuredScopeAsStream.TaskHandle.State.CANCELLED, task2.state());
     }
   }
 
   @Test
   public void manyTasksFailureShortCircuitStream() throws InterruptedException, IOException {
-    try(var scope = new AsyncScope<Integer, IOException>()) {
+    try(var scope = new StructuredScopeAsStream<Integer, IOException>()) {
       var task = scope.fork(() -> {
         Thread.sleep(100);
         return 10;
@@ -251,17 +247,17 @@ public class AsyncScopeTest {
         throw new IOException("oops");
       });
 
-      int value = scope.join(stream -> stream.flatMap(Result::keepOnlySuccess).findFirst()).orElseThrow();
+      int value = scope.joinAll(stream -> stream.flatMap(Result::keepOnlySuccess).findFirst()).orElseThrow();
       assertEquals(10, value);
-      assertEquals(10, task.getNow());
-      assertEquals(AsyncScope.TaskHandle.State.CANCELLED, task2.state());
+      assertEquals(10, task.get());
+      assertEquals(StructuredScopeAsStream.TaskHandle.State.CANCELLED, task2.state());
     }
   }
 
 
   @Test
   public void manyTasksSuccessReduceStream() throws InterruptedException {
-    try(var scope = new AsyncScope<Integer, RuntimeException>()) {
+    try(var scope = new StructuredScopeAsStream<Integer, RuntimeException>()) {
       var task = scope.fork(() -> {
         Thread.sleep(100);
         return 10;
@@ -271,7 +267,7 @@ public class AsyncScopeTest {
         return 30;
       });
 
-      var result = scope.join(stream -> stream.reduce(Result.merger(Integer::sum))).orElseThrow();
+      var result = scope.joinAll(stream -> stream.reduce(Result.merger(Integer::sum))).orElseThrow();
       switch (result.state()) {
         case SUCCESS -> assertEquals(40, result.result());
         case FAILED -> fail();
@@ -281,7 +277,7 @@ public class AsyncScopeTest {
 
   @Test
   public void manyTasksFailureReduceStream() throws InterruptedException {
-    try(var scope = new AsyncScope<Integer, IOException>()) {
+    try(var scope = new StructuredScopeAsStream<Integer, IOException>()) {
       var task = scope.fork(() -> {
         Thread.sleep(100);
         return 10;
@@ -291,7 +287,7 @@ public class AsyncScopeTest {
         throw new IOException("oops");
       });
 
-      var result = scope.join(stream -> stream.reduce(Result.merger(Integer::sum))).orElseThrow();
+      var result = scope.joinAll(stream -> stream.reduce(Result.merger(Integer::sum))).orElseThrow();
       switch (result.state()) {
         case SUCCESS -> assertEquals(10, result.result());
         case FAILED -> fail();
@@ -301,7 +297,7 @@ public class AsyncScopeTest {
 
   @Test
   public void manyTasksFailureReduceStream2() throws InterruptedException {
-    try(var scope = new AsyncScope<Integer, IOException>()) {
+    try(var scope = new StructuredScopeAsStream<Integer, IOException>()) {
       var task = scope.fork(() -> {
         Thread.sleep(300);
         return 10;
@@ -311,7 +307,7 @@ public class AsyncScopeTest {
         throw new IOException("oops");
       });
 
-      var result = scope.join(stream -> stream.reduce(Result.merger(Integer::sum))).orElseThrow();
+      var result = scope.joinAll(stream -> stream.reduce(Result.merger(Integer::sum))).orElseThrow();
       switch (result.state()) {
         case SUCCESS -> assertEquals(10, result.result());
         case FAILED -> fail();
@@ -321,7 +317,7 @@ public class AsyncScopeTest {
 
   @Test
   public void manyTasksAllFailsReduceStream() throws InterruptedException {
-    try(var scope = new AsyncScope<Integer, IOException>()) {
+    try(var scope = new StructuredScopeAsStream<Integer, IOException>()) {
       var task = scope.fork(() -> {
         Thread.sleep(100);
         throw new IOException("oops");
@@ -331,7 +327,7 @@ public class AsyncScopeTest {
         throw new IOException("oops2");
       });
 
-      var result = scope.join(stream -> stream.reduce(Result.merger(Integer::sum))).orElseThrow();
+      var result = scope.joinAll(stream -> stream.reduce(Result.merger(Integer::sum))).orElseThrow();
       switch (result.state()) {
         case FAILED -> assertTrue(result.failure() instanceof IOException e && e.getMessage().equals("oops"));
         case SUCCESS -> fail();
@@ -366,7 +362,7 @@ public class AsyncScopeTest {
   //  ...
   @Test
   public void complexShortCircuitExample() throws InterruptedException {
-    try(var scope = new AsyncScope<Integer, IOException>()) {
+    try(var scope = new StructuredScopeAsStream<Integer, IOException>()) {
       for(var i = 0; i < 30; i++) {
         var id = i;
         scope.fork(() -> {
@@ -379,7 +375,7 @@ public class AsyncScopeTest {
         });
       }
       var box = new Object() { int counter; };
-      var result = scope.join(stream -> stream
+      var result = scope.joinAll(stream -> stream
               .peek(r -> {
                 if (r.isFailed() && r.failure() instanceof UnknownHostException e) {
                   throw new UncheckedIOException(e);

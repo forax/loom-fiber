@@ -13,22 +13,7 @@ import java.util.stream.Collector;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
-public final class AsyncScope<T, E extends Exception> implements AutoCloseable {
-  /**
-   * A callable that propagates the checked exceptions
-   * @param <T> type of the result
-   * @param <E> type of the checked exception, uses {@code RuntimeException} otherwise.
-   */
-  @FunctionalInterface
-  public interface Invokable<T, E extends Exception> {
-    /**
-     * Compute the computation.
-     * @return a result
-     * @throws E an exception
-     * @throws InterruptedException if the computation is interrupted or cancelled
-     */
-    T invoke() throws E, InterruptedException;
-  }
+public final class StructuredScopeAsStream<T, E extends Exception> implements AutoCloseable {
 
   /**
    * Result of an asynchronous computation
@@ -43,21 +28,9 @@ public final class AsyncScope<T, E extends Exception> implements AutoCloseable {
 
     /**
      * Returns the state of the task.
-     * @return
+     * @return the state of the task.
      */
     State state();
-
-    /**
-     * Returns the exception, if the task failed with an exception.
-     * @return
-     */
-    E exception();
-
-    /**
-     * Returns the result, if the task completed successfully.
-     * @return
-     */
-    T get();
 
     /**
      * Returns the value of the computation
@@ -66,13 +39,7 @@ public final class AsyncScope<T, E extends Exception> implements AutoCloseable {
      * @throws CancelledException if the task was cancelled.
      * @throws IllegalStateException if the computation is not done.
      */
-    T getNow() throws E, CancelledException;
-  }
-
-  public static final class CancelledException extends RuntimeException {
-    private CancelledException() {
-      super(null, null, false, false);
-    }
+    T get() throws E, CancelledException;
   }
 
   /**
@@ -153,6 +120,16 @@ public final class AsyncScope<T, E extends Exception> implements AutoCloseable {
 
     public boolean isFailed() {
       return state == State.FAILED;
+    }
+
+    public <R> Result<R, E> mapResult(Function<? super T, ? extends R> resultMapper) {
+      Objects.requireNonNull(resultMapper);
+      return new Result<>(state, resultMapper.apply(result), failure);
+    }
+
+    public <X extends E> Result<T, X> mapException(Function<? super E, ? extends X> exceptionMapper) {
+      Objects.requireNonNull(exceptionMapper);
+      return new Result<>(state, result, exceptionMapper.apply(failure));
     }
 
     /**
@@ -276,7 +253,7 @@ public final class AsyncScope<T, E extends Exception> implements AutoCloseable {
   /**
    * Creates an asynchronous scope to manage several asynchronous computations.
    */
-  public AsyncScope() {
+  public StructuredScopeAsStream() {
     this.ownerThread = Thread.currentThread();
     this.taskScope = new StructuredTaskScope<>() {
       @Override
@@ -302,7 +279,7 @@ public final class AsyncScope<T, E extends Exception> implements AutoCloseable {
    * @param invokable the computation to run.
    * @return an asynchronous task, an object that represents the result of the computation in the future.
    *
-   * @see TaskHandle#getNow()
+   * @see TaskHandle#get()
    */
   public TaskHandle<T, E> fork(Invokable<? extends T, ? extends E> invokable) {
     var future = taskScope.<T>fork(invokable::invoke);
@@ -324,32 +301,9 @@ public final class AsyncScope<T, E extends Exception> implements AutoCloseable {
       }
 
       @Override
-      public E exception() {
-        if (future.state() != Future.State.FAILED) {
-          throw new IllegalStateException();
-        }
-        var exception = future.exceptionNow();
-        if (exception instanceof InterruptedException) {
-          throw new IllegalStateException();
-        }
-        return (E) exception;
-      }
-
-      @Override
-      public T get() {
-        if (future.state() != Future.State.SUCCESS) {
-          throw new IllegalStateException();
-        }
-        return (T) future.resultNow();
-      }
-
-      @Override
-      public T getNow() throws E, CancelledException {
-        if (!future.isDone()) {
-          throw new IllegalStateException("Task is not completed");
-        }
+      public T get() throws E, CancelledException {
         return switch (future.state()) {
-          case RUNNING -> throw new AssertionError();
+          case RUNNING -> throw new IllegalStateException("Task is not completed");
           case SUCCESS -> future.resultNow();
           case CANCELLED -> throw new CancelledException();
           case FAILED -> {
@@ -439,7 +393,7 @@ public final class AsyncScope<T, E extends Exception> implements AutoCloseable {
    * @throws InterruptedException if the current thread is interrupted
    * @throws WrongThreadException if this method is not called by the thread that has created this scope.
    */
-  public <V> V join(Function<? super Stream<Result<T,E>>, ? extends V> streamMapper) throws InterruptedException {
+  public <V> V joinAll(Function<? super Stream<Result<T,E>>, ? extends V> streamMapper) throws InterruptedException {
     checkThread();
     var stream = StreamSupport.stream(new ResultSpliterator(), false);
     var value = streamMapper.apply(stream);
@@ -450,4 +404,9 @@ public final class AsyncScope<T, E extends Exception> implements AutoCloseable {
     taskScope.join();
     return value;
   }
+
+  /* useful overload ??
+  public <R, X extends Exception> R joinAllToResult(Function<? super Stream<Result<T,E>>, ? extends Result<R,X>> streamMapper) throws X, InterruptedException {
+    return joinAll(streamMapper).getNow();
+  }*/
 }

@@ -2,7 +2,7 @@ package fr.umlv.loom.rickandmorty;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import fr.umlv.loom.structured.AsyncScope;
+import fr.umlv.loom.structured.StructuredScopeAsStream;
 import jdk.incubator.concurrent.StructuredTaskScope;
 
 import java.io.IOException;
@@ -175,29 +175,29 @@ public class RickAndMortyExample {
 
     public static Set<Character> asyncScope() throws IOException, InterruptedException {
         Set<URI> characterURIs1, characterURIs2;
-        try(var scope = new AsyncScope<Set<URI>, IOException>()) {
+        try(var scope = new StructuredScopeAsStream<Set<URI>, IOException>()) {
             var task1 = scope.fork(() -> characterOfEpisode(1));
             var task2 = scope.fork(() -> characterOfEpisode(2));
-            var errorOpt = scope.join(stream -> stream.filter(AsyncScope.Result::isFailed).findFirst());
+            var errorOpt = scope.joinAll(stream -> stream.filter(StructuredScopeAsStream.Result::isFailed).findFirst());
             if (errorOpt.isPresent()) {
                 throw errorOpt.orElseThrow().failure();
             }
-            characterURIs1 = task1.getNow();
-            characterURIs2 = task2.getNow();
+            characterURIs1 = task1.get();
+            characterURIs2 = task2.get();
         }
         var commonCharacterURIs = new HashSet<>(characterURIs1);
         commonCharacterURIs.retainAll(characterURIs2);
-        try(var scope = new AsyncScope<Character, IOException>()) {
+        try(var scope = new StructuredScopeAsStream<Character, IOException>()) {
             for(var characterURI: commonCharacterURIs) {
                 scope.fork(() -> character(characterURI));
             }
-            return scope.join(stream -> stream
+            return scope.joinAll(stream -> stream
                     .peek(r -> {
                         if (r.isFailed()) {
                             throw new UncheckedIOException(r.failure());
                         }
                     })
-                    .map(AsyncScope.Result::result)
+                    .map(StructuredScopeAsStream.Result::result)
                     .collect(Collectors.toSet()));
         }
     }
