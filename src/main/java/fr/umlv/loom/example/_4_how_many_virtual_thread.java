@@ -5,7 +5,7 @@ import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.IntStream;
 
-// $JAVA_HOME/bin/java --enable-preview -cp target/loom-1.0-SNAPSHOT.jar  fr.umlv.loom.example._4_how_many_virtual_thread
+// $JAVA_HOME/bin/java -cp target/classes  fr.umlv.loom.example._4_how_many_virtual_thread
 public interface _4_how_many_virtual_thread {
   static void main(String[] args) throws InterruptedException {
     var counter = new AtomicInteger();

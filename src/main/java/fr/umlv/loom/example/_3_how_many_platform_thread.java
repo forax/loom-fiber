@@ -6,7 +6,7 @@ import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.IntStream;
 
-// $JAVA_HOME/bin/java -cp target/loom-1.0-SNAPSHOT.jar  fr.umlv.loom.example._3_how_many_platform_thread
+// $JAVA_HOME/bin/java -cp target/classes  fr.umlv.loom.example._3_how_many_platform_thread
 public interface _3_how_many_platform_thread {
   static void main(String[] args) throws BrokenBarrierException, InterruptedException {
     var barrier = new CyclicBarrier(100_000);
