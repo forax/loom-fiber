@@ -8,9 +8,9 @@ import java.util.concurrent.StructuredTaskScope;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Stream;
 
-// $JAVA_HOME/bin/java --enable-preview --add-modules jdk.incubator.concurrent -cp target/loom-1.0-SNAPSHOT.jar  fr.umlv.loom.example._14_adhoc_scope
-// docker run -it --rm --user forax -v /Users/forax:/home/forax -w /home/forax/git/loom-fiber fedora $JAVA_HOME/bin/java --enable-preview -cp target/classes fr.umlv.loom.example._14_adhoc_scope
-public interface _14_adhoc_scope {
+// $JAVA_HOME/bin/java --enable-preview --add-modules jdk.incubator.concurrent -cp target/loom-1.0-SNAPSHOT.jar  fr.umlv.loom.example._15_adhoc_scope
+// docker run -it --rm --user forax -v /Users/forax:/home/forax -w /home/forax/git/loom-fiber fedora $JAVA_HOME/bin/java --enable-preview -cp target/classes fr.umlv.loom.example._15_adhoc_scope
+public interface _15_adhoc_scope {
   sealed interface Result<T> { }
   record Success<T>(T value) implements Result<T> {}
   record Failure<T>(Throwable context) implements Result<T> {}
@@ -33,9 +33,10 @@ public interface _14_adhoc_scope {
     }
 
     @Override
-    public StructuredTaskScope<T> join() throws InterruptedException {
+    public StreamStructuredTaskScope<T> join() throws InterruptedException {
       try {
-        return super.join();
+        super.join();
+        return this;
       } finally {
         queue.put(POISON);
         shutdown();
@@ -43,9 +44,10 @@ public interface _14_adhoc_scope {
     }
 
     @Override
-    public StructuredTaskScope<T> joinUntil(Instant deadline) throws InterruptedException, TimeoutException {
+    public StreamStructuredTaskScope<T> joinUntil(Instant deadline) throws InterruptedException, TimeoutException {
       try {
-        return super.joinUntil(deadline);
+        super.joinUntil(deadline);
+        return this;
       } finally {
         queue.put(POISON);
         shutdown();
@@ -69,16 +71,15 @@ public interface _14_adhoc_scope {
 
   static void main(String[] args) throws InterruptedException {
     try(var scope = new StreamStructuredTaskScope<>()) {
-      var future1 = scope.fork(() -> {
+      var task1 = scope.fork(() -> {
         Thread.sleep(50);
         return 1;
       });
-      var future2 = scope.fork(() -> {
+      var task2 = scope.fork(() -> {
         Thread.sleep(50);
         throw new IOException("oops");
       });
-      scope.join();
-      scope.stream().forEach(System.out::println);
+      scope.join().stream().forEach(System.out::println);
     }
   }
 }
