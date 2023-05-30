@@ -1,7 +1,5 @@
 package fr.umlv.loom.example;
 
-import jdk.incubator.concurrent.ScopedValue;
-
 // $JAVA_HOME/bin/java --enable-preview --add-modules jdk.incubator.concurrent -cp target/loom-1.0-SNAPSHOT.jar  fr.umlv.loom.example._6_scoped_value
 public class _6_scoped_value {
   private static final ScopedValue<String> USER = ScopedValue.newInstance();
@@ -13,7 +11,7 @@ public class _6_scoped_value {
   public static void main(String[] args) throws InterruptedException {
     var vthread = Thread.ofVirtual()
         .start(() -> {
-          ScopedValue.where(USER, "Bob", () -> {
+          ScopedValue.runWhere(USER, "Bob", () -> {
             sayHello();
           });
         });

@@ -231,7 +231,7 @@ public class StructuredScopeAsStreamTest {
       int value = scope.joinAll(stream -> stream.flatMap(Result::keepOnlySuccess).findFirst()).orElseThrow();
       assertEquals(10, value);
       assertEquals(10, task.get());
-      assertEquals(StructuredScopeAsStream.TaskHandle.State.CANCELLED, task2.state());
+      assertEquals(StructuredScopeAsStream.TaskHandle.State.UNAVAILABLE, task2.state());
     }
   }
 
@@ -250,7 +250,7 @@ public class StructuredScopeAsStreamTest {
       int value = scope.joinAll(stream -> stream.flatMap(Result::keepOnlySuccess).findFirst()).orElseThrow();
       assertEquals(10, value);
       assertEquals(10, task.get());
-      assertEquals(StructuredScopeAsStream.TaskHandle.State.CANCELLED, task2.state());
+      assertEquals(StructuredScopeAsStream.TaskHandle.State.UNAVAILABLE, task2.state());
     }
   }
 

@@ -53,12 +53,12 @@ public class StructuredScopeShutdownOnFailureTest {
       try {
         scope.joinAll();
         fail();
-      } catch(CancelledException e) {
+      } catch(InterruptedException e) {
         // ok
       }
 
       assertAll(
-          () -> assertEquals(StructuredScopeShutdownOnFailure.TaskHandle.State.CANCELLED, handle.state()),
+          () -> assertEquals(StructuredScopeShutdownOnFailure.TaskHandle.State.UNAVAILABLE, handle.state()),
           () -> assertThrows(IllegalStateException.class, handle::get)
       );
     }
@@ -114,7 +114,7 @@ public class StructuredScopeShutdownOnFailureTest {
       assertAll(
           () -> assertEquals(StructuredScopeShutdownOnFailure.TaskHandle.State.FAILED, handle.state()),
           () -> assertThrows(IllegalStateException.class, handle::get),
-          () -> assertEquals(StructuredScopeShutdownOnFailure.TaskHandle.State.CANCELLED, handle2.state()),
+          () -> assertEquals(StructuredScopeShutdownOnFailure.TaskHandle.State.UNAVAILABLE, handle2.state()),
           () -> assertThrows(IllegalStateException.class, handle2::get)
       );
     }

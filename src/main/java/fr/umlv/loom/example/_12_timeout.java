@@ -1,10 +1,9 @@
 package fr.umlv.loom.example;
 
-import jdk.incubator.concurrent.StructuredTaskScope;
-
 import java.time.Duration;
 import java.time.Instant;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.StructuredTaskScope;
 import java.util.concurrent.TimeoutException;
 
 // $JAVA_HOME/bin/java --enable-preview --add-modules jdk.incubator.concurrent -cp target/loom-1.0-SNAPSHOT.jar  fr.umlv.loom.example._12_timeout
