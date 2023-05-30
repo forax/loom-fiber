@@ -1,7 +1,7 @@
 package fr.umlv.loom.example;
 
-// $JAVA_HOME/bin/java --enable-preview --add-modules jdk.incubator.concurrent -cp target/loom-1.0-SNAPSHOT.jar  fr.umlv.loom.example._6_scoped_value
-public class _6_scoped_value {
+// $JAVA_HOME/bin/java --enable-preview -cp target/classes  fr.umlv.loom.example._7_scoped_value
+public class _7_scoped_value {
   private static final ScopedValue<String> USER = ScopedValue.newInstance();
 
   private static void sayHello() {

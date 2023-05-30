@@ -1,7 +1,7 @@
 package fr.umlv.loom.example;
 
-// $JAVA_HOME/bin/java --enable-preview -cp target/loom-1.0-SNAPSHOT.jar  fr.umlv.loom.example._7_thread_local
-public class _7_thread_local {
+// $JAVA_HOME/bin/java -cp target/classes  fr.umlv.loom.example._6_thread_local
+public class _6_thread_local {
   private static final ThreadLocal<String> USER = new ThreadLocal<>();
 
   private static void sayHello() {
@@ -9,9 +9,7 @@ public class _7_thread_local {
   }
 
   public static void main(String[] args) throws InterruptedException {
-    var vthread = Thread.ofVirtual()
-        //.allowSetThreadLocals(true)
-        .start(() -> {
+    var vthread = Thread.ofVirtual().start(() -> {
       USER.set("Bob");
       try {
         sayHello();
