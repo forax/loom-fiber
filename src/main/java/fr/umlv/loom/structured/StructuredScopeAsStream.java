@@ -21,7 +21,7 @@ public final class StructuredScopeAsStream<T, E extends Exception> implements Au
    * @param <T> type of the result of the computation
    * @param <E> type of the exception thrown by the computation
    */
-  public interface TaskHandle<T, E extends Exception> {
+  public interface Subtask<T, E extends Exception> {
     enum State {
       SUCCESS, FAILED, UNAVAILABLE
     }
@@ -106,7 +106,7 @@ public final class StructuredScopeAsStream<T, E extends Exception> implements Au
      * @return the value of the computation
      * @throws E the exception thrown by the computation
      */
-    public T getNow() throws E {
+    public T get() throws E {
       return switch (state) {
         case SUCCESS -> result;
         case FAILED -> throw failure;
@@ -298,12 +298,12 @@ public final class StructuredScopeAsStream<T, E extends Exception> implements Au
    * @param invokable the computation to run.
    * @return an asynchronous task, an object that represents the result of the computation in the future.
    *
-   * @see TaskHandle#get()
+   * @see Subtask#get()
    */
-  public TaskHandle<T, E> fork(Invokable<? extends T, ? extends E> invokable) {
+  public Subtask<T, E> fork(Invokable<? extends T, ? extends E> invokable) {
     var subtask = taskScope.<T>fork(invokable::invoke);
     TASK_COUNT.getAndAdd(this, 1);
-    return new TaskHandle<>() {
+    return new Subtask<>() {
       @Override
       public State state() {
         return switch (subtask.state()) {
