@@ -17,7 +17,7 @@ public class StructuredScopeShutdownOnFailureTest {
       scope.joinAll();
       int value = handle.get();
       assertAll(
-          () -> assertEquals(StructuredScopeShutdownOnFailure.TaskHandle.State.SUCCESS, handle.state()),
+          () -> assertEquals(StructuredScopeShutdownOnFailure.Subtask.State.SUCCESS, handle.state()),
           () -> assertEquals(42, value)
       );
     }
@@ -37,7 +37,7 @@ public class StructuredScopeShutdownOnFailureTest {
         assertEquals("boom", e.getMessage());
       }
       assertAll(
-          () -> assertEquals(StructuredScopeShutdownOnFailure.TaskHandle.State.FAILED, handle.state()),
+          () -> assertEquals(StructuredScopeShutdownOnFailure.Subtask.State.FAILED, handle.state()),
           () -> assertThrows(IllegalStateException.class, handle::get)
       );
     }
@@ -58,7 +58,7 @@ public class StructuredScopeShutdownOnFailureTest {
       }
 
       assertAll(
-          () -> assertEquals(StructuredScopeShutdownOnFailure.TaskHandle.State.UNAVAILABLE, handle.state()),
+          () -> assertEquals(StructuredScopeShutdownOnFailure.Subtask.State.UNAVAILABLE, handle.state()),
           () -> assertThrows(IllegalStateException.class, handle::get)
       );
     }
@@ -86,9 +86,9 @@ public class StructuredScopeShutdownOnFailureTest {
       int value = handle.get();
       int value2 = handle2.get();
       assertAll(
-          () -> assertEquals(StructuredScopeShutdownOnFailure.TaskHandle.State.SUCCESS, handle.state()),
+          () -> assertEquals(StructuredScopeShutdownOnFailure.Subtask.State.SUCCESS, handle.state()),
           () -> assertEquals(30, value),
-          () -> assertEquals(StructuredScopeShutdownOnFailure.TaskHandle.State.SUCCESS, handle2.state()),
+          () -> assertEquals(StructuredScopeShutdownOnFailure.Subtask.State.SUCCESS, handle2.state()),
           () -> assertEquals(10, value2)
       );
     }
@@ -112,9 +112,9 @@ public class StructuredScopeShutdownOnFailureTest {
         assertEquals("boom", e.getMessage());
       }
       assertAll(
-          () -> assertEquals(StructuredScopeShutdownOnFailure.TaskHandle.State.FAILED, handle.state()),
+          () -> assertEquals(StructuredScopeShutdownOnFailure.Subtask.State.FAILED, handle.state()),
           () -> assertThrows(IllegalStateException.class, handle::get),
-          () -> assertEquals(StructuredScopeShutdownOnFailure.TaskHandle.State.UNAVAILABLE, handle2.state()),
+          () -> assertEquals(StructuredScopeShutdownOnFailure.Subtask.State.UNAVAILABLE, handle2.state()),
           () -> assertThrows(IllegalStateException.class, handle2::get)
       );
     }
@@ -138,9 +138,9 @@ public class StructuredScopeShutdownOnFailureTest {
         assertEquals("boom", e.getMessage());
       }
       assertAll(
-          () -> assertEquals(StructuredScopeShutdownOnFailure.TaskHandle.State.FAILED, handle.state()),
+          () -> assertEquals(StructuredScopeShutdownOnFailure.Subtask.State.FAILED, handle.state()),
           () -> assertThrows(IllegalStateException.class, handle::get),
-          () -> assertEquals(StructuredScopeShutdownOnFailure.TaskHandle.State.SUCCESS, handle2.state()),
+          () -> assertEquals(StructuredScopeShutdownOnFailure.Subtask.State.SUCCESS, handle2.state()),
           () -> assertEquals(42, handle2.get())
       );
     }

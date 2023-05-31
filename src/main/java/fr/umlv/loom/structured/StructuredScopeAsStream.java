@@ -113,6 +113,14 @@ public final class StructuredScopeAsStream<T, E extends Exception> implements Au
       };
     }
 
+    @Override
+    public String toString() {
+      return switch (state) {
+        case SUCCESS -> "Success(" + result + ")";
+        case FAILED -> "Failed(" + failure + ")";
+      };
+    }
+
     public boolean isSuccess() {
       return state == State.SUCCESS;
     }

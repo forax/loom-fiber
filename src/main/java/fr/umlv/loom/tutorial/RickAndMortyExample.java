@@ -13,11 +13,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.StructuredTaskScope;
+import java.util.concurrent.*;
 import java.util.stream.Collectors;
 
 import static java.util.stream.Collectors.toSet;
@@ -41,6 +37,27 @@ public class RickAndMortyExample {
             var objectMapper = new ObjectMapper();
             var episode = objectMapper.readValue(response.body(), Episode.class);
             return episode.characters();
+        }
+    }
+
+    private static CompletableFuture<Set<URI>> characterOfEpisodeFuture(int episodeId) {
+        try (var httpClient = HttpClient.newHttpClient()) {
+            var request = HttpRequest.newBuilder()
+                .uri(URI.create("https://rickandmortyapi.com/api/episode/" + episodeId))
+                .GET()
+                .build();
+
+            return httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofInputStream())
+                .thenCompose(response -> {
+                    var objectMapper = new ObjectMapper();
+                    Episode episode;
+                    try {
+                        episode = objectMapper.readValue(response.body(), Episode.class);
+                    } catch (IOException e) {
+                        return CompletableFuture.failedFuture(e);
+                    }
+                    return CompletableFuture.completedFuture(episode.characters());
+                });
         }
     }
 

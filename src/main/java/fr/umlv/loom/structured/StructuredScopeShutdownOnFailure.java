@@ -12,7 +12,7 @@ public class StructuredScopeShutdownOnFailure<E extends Exception> implements Au
     this.scope = new StructuredTaskScope.ShutdownOnFailure();
   }
 
-  public interface TaskHandle<T> extends Supplier<T> {
+  public interface Subtask<T> extends Supplier<T> {
     enum State { SUCCESS, FAILED, UNAVAILABLE }
 
     State state();
@@ -20,9 +20,9 @@ public class StructuredScopeShutdownOnFailure<E extends Exception> implements Au
     T get();
   }
 
-  public <T> TaskHandle<T> fork(Invokable<? extends T, ? extends E> invokable) {
+  public <T> Subtask<T> fork(Invokable<? extends T, ? extends E> invokable) {
     var subtask = scope.fork(invokable::invoke);
-    return new TaskHandle<T>() {
+    return new Subtask<T>() {
       @Override
       public State state() {
         return switch (subtask.state()) {

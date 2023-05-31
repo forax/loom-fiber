@@ -5,7 +5,7 @@ import java.util.concurrent.StructuredTaskScope;
 // $JAVA_HOME/bin/java --enable-preview -cp target/classes  fr.umlv.loom.example._9_structured_concurrency
 // docker run -it --rm --user forax -v /Users/forax:/home/forax -w /home/forax/git/loom-fiber fedora $JAVA_HOME/bin/java --enable-preview -cp target/classes fr.umlv.loom.example._9_structured_concurrency
 public interface _9_structured_concurrency {
-  private static void simple() throws InterruptedException {
+  static void main(String[] args) throws InterruptedException {
     try (var scope = new StructuredTaskScope<>()) {
       var task1 = scope.fork(() -> {
         Thread.sleep(1_000);
@@ -19,9 +19,5 @@ public interface _9_structured_concurrency {
       var result = task1.get() + task2.get();
       System.out.println(result);
     }
-  }
-
-  static void main(String[] args) throws InterruptedException {
-    simple();
   }
 }
