@@ -12,39 +12,11 @@ public class StructuredScopeShutdownOnFailure<E extends Exception> implements Au
     this.scope = new StructuredTaskScope.ShutdownOnFailure();
   }
 
-  public interface Subtask<T> extends Supplier<T> {
-    enum State { SUCCESS, FAILED, UNAVAILABLE }
-
-    State state();
-
-    T get();
-  }
-
-  public <T> Subtask<T> fork(Invokable<? extends T, ? extends E> invokable) {
+  public <T> Supplier<T> fork(Invokable<? extends T, ? extends E> invokable) {
     var subtask = scope.fork(invokable::invoke);
-    return new Subtask<T>() {
-      @Override
-      public State state() {
-        return switch (subtask.state()) {
-          case UNAVAILABLE -> State.UNAVAILABLE;
-          case SUCCESS -> State.SUCCESS;
-          case FAILED -> {
-            var throwable = subtask.exception();
-            if (throwable instanceof InterruptedException) {
-              yield State.UNAVAILABLE;
-            }
-            yield State.FAILED;
-          }
-        };
-      }
-
-      @Override
-      public T get() {
-        return switch (subtask.state()) {
-          case UNAVAILABLE, FAILED -> throw new IllegalStateException();
-          case SUCCESS -> subtask.get();
-        };
-      }
+    return () -> switch (subtask.state()) {
+      case UNAVAILABLE, FAILED -> throw new IllegalStateException();
+      case SUCCESS -> subtask.get();
     };
   }
 

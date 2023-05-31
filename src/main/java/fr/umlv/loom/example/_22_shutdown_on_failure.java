@@ -7,16 +7,16 @@ import fr.umlv.loom.structured.StructuredScopeShutdownOnFailure;
 public interface _22_shutdown_on_failure {
   static void main(String[] args) throws InterruptedException {
     try (var scope = new StructuredScopeShutdownOnFailure<RuntimeException>()) {
-      var task1 = scope.fork(() -> {
+      var supplier1 = scope.fork(() -> {
         Thread.sleep(1_000);
         return 1;
       });
-      var task2 = scope.fork(() -> {
+      var supplier2 = scope.fork(() -> {
         Thread.sleep(42);
         return 2;
       });
       scope.joinAll();
-      System.out.println(task1.get() + task2.get());
+      System.out.println(supplier1.get() + supplier2.get());
     }
   }
 }
