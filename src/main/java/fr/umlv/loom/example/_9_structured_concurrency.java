@@ -5,7 +5,7 @@ import java.util.concurrent.StructuredTaskScope;
 // $JAVA_HOME/bin/java --enable-preview -cp target/classes  fr.umlv.loom.example._9_structured_concurrency
 public interface _9_structured_concurrency {
   static void main(String[] args) throws InterruptedException {
-    try (var scope = new StructuredTaskScope<>()) {
+    try (var scope = new StructuredTaskScope<Integer>()) {
       var task1 = scope.fork(() -> {
         Thread.sleep(1_000);
         return 1;
