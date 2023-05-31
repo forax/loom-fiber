@@ -21,7 +21,6 @@ public interface _8_executor {
       executor.shutdown();
       var result = future1.get() + future2.get();
       System.out.println(result);
-      // everything is fine here, right ???
     }
   }
 
