@@ -9,7 +9,6 @@ import java.util.concurrent.TimeoutException;
 import java.util.stream.Stream;
 
 // $JAVA_HOME/bin/java --enable-preview --add-modules jdk.incubator.concurrent -cp target/loom-1.0-SNAPSHOT.jar  fr.umlv.loom.example._15_adhoc_scope
-// docker run -it --rm --user forax -v /Users/forax:/home/forax -w /home/forax/git/loom-fiber fedora $JAVA_HOME/bin/java --enable-preview -cp target/classes fr.umlv.loom.example._15_adhoc_scope
 public interface _15_adhoc_scope {
   sealed interface Result<T> { }
   record Success<T>(T value) implements Result<T> {}

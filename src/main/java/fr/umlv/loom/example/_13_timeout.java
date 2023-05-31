@@ -7,7 +7,6 @@ import java.util.concurrent.StructuredTaskScope;
 import java.util.concurrent.TimeoutException;
 
 // $JAVA_HOME/bin/java --enable-preview -cp target/classes  fr.umlv.loom.example._13_timeout
-// docker run -it --rm --user forax -v /Users/forax:/home/forax -w /home/forax/git/loom-fiber fedora $JAVA_HOME/bin/java --enable-preview -cp target/classes fr.umlv.loom.example._13_shutdown_on_success
 public interface _13_timeout {
   static void main(String[] args) throws InterruptedException, ExecutionException {
     try (var scope = new StructuredTaskScope<>()) {

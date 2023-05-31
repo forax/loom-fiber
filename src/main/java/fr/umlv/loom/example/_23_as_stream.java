@@ -7,7 +7,6 @@ import java.io.IOException;
 import java.util.stream.Collectors;
 
 // $JAVA_HOME/bin/java --enable-preview -cp target/classes  fr.umlv.loom.example._23_as_stream
-// docker run -it --rm --user forax -v /Users/forax:/home/forax -w /home/forax/git/loom-fiber fedora $JAVA_HOME/bin/java --enable-preview -cp target/classes fr.umlv.loom.example._23_as_stream
 public interface _23_as_stream {
   static void main(String[] args) throws /*IOException,*/ InterruptedException {
     try (var scope = new StructuredScopeAsStream<Integer, IOException>()) {

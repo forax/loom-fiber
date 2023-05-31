@@ -6,7 +6,6 @@ import fr.umlv.loom.structured.StructuredScopeAsStream.Result;
 import java.io.IOException;
 
 // $JAVA_HOME/bin/java --enable-preview -cp target/classes  fr.umlv.loom.example._24_as_stream_short_circuit
-// docker run -it --rm --user forax -v /Users/forax:/home/forax -w /home/forax/git/loom-fiber fedora $JAVA_HOME/bin/java --enable-preview -cp target/classes fr.umlv.loom.example._24_as_stream_short_circuit
 public interface _24_as_stream_short_circuit {
   static void main(String[] args) throws InterruptedException {
     try (var scope = new StructuredScopeAsStream<Integer, IOException>()) {

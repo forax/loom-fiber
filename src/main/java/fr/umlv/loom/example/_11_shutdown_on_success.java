@@ -4,7 +4,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.StructuredTaskScope;
 
 // $JAVA_HOME/bin/java --enable-preview -cp target/classes fr.umlv.loom.example._11_shutdown_on_success
-// docker run -it --rm --user forax -v /Users/forax:/home/forax -w /home/forax/git/loom-fiber fedora $JAVA_HOME/bin/java --enable-preview -cp target/classes fr.umlv.loom.example._11_shutdown_on_success
 public interface _11_shutdown_on_success {
   static void main(String[] args) throws InterruptedException, ExecutionException {
     try (var scope = new StructuredTaskScope.ShutdownOnSuccess<Integer>()) {

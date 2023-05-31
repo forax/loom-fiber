@@ -5,7 +5,6 @@ import fr.umlv.loom.structured.StructuredScopeShutdownOnSuccess;
 import java.io.IOException;
 
 // $JAVA_HOME/bin/java --enable-preview -cp target/classes fr.umlv.loom.example._21_shutdown_on_success
-// docker run -it --rm --user forax -v /Users/forax:/home/forax -w /home/forax/git/loom-fiber fedora $JAVA_HOME/bin/java --enable-preview -cp target/classes fr.umlv.loom.example._21_shutdown_on_success
 public interface _21_shutdown_on_success {
   static void main(String[] args) throws IOException, InterruptedException {
     try (var scope = new StructuredScopeShutdownOnSuccess<Integer, IOException>()) {

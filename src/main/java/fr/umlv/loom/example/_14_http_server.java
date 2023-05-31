@@ -23,7 +23,7 @@ import static java.util.stream.Collectors.joining;
 //   POST /tasks take the content as a JSON text and add it as a new task
 //   DELETE /tasks/id delete a task by its id
 
-// $JAVA_HOME/bin/java --enable-preview -cp target/loom-1.0-SNAPSHOT.jar  fr.umlv.loom.example._14_http_server
+// $JAVA_HOME/bin/java -cp target/loom-1.0-SNAPSHOT.jar  fr.umlv.loom.example._14_http_server
 public interface _14_http_server {
   record Task(int id, String content) {
     public String toJSON() {
