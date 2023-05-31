@@ -10,11 +10,11 @@ import java.io.IOException;
 public interface _24_as_stream_short_circuit {
   static void main(String[] args) throws InterruptedException {
     try (var scope = new StructuredScopeAsStream<Integer, IOException>()) {
-      var task1 = scope.fork(() -> {
+      scope.fork(() -> {
         Thread.sleep(1_000);
         return 1_000;
       });
-      var task2 = scope.fork(() -> {
+      scope.fork(() -> {
         Thread.sleep(42);
         //throw new IOException();
         return 42;
