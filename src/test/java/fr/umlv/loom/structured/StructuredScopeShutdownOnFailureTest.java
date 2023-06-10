@@ -10,23 +10,20 @@ public class StructuredScopeShutdownOnFailureTest {
   @Test
   public void oneTaskSuccess() throws InterruptedException {
     try(var scope = new StructuredScopeShutdownOnFailure<RuntimeException>()) {
-      var handle = scope.fork(() -> {
+      var supplier = scope.fork(() -> {
         Thread.sleep(100);
         return 42;
       });
       scope.joinAll();
-      int value = handle.get();
-      assertAll(
-          () -> assertEquals(StructuredScopeShutdownOnFailure.TaskHandle.State.SUCCESS, handle.state()),
-          () -> assertEquals(42, value)
-      );
+      int value = supplier.get();
+      assertEquals(42, value);
     }
   }
 
   @Test
   public void oneTaskFailures() throws InterruptedException {
     try(var scope = new StructuredScopeShutdownOnFailure<IOException>()) {
-      var handle = scope.fork(() -> {
+      var supplier = scope.fork(() -> {
         Thread.sleep(100);
         throw new IOException("boom");
       });
@@ -36,31 +33,25 @@ public class StructuredScopeShutdownOnFailureTest {
       } catch (IOException e) {
         assertEquals("boom", e.getMessage());
       }
-      assertAll(
-          () -> assertEquals(StructuredScopeShutdownOnFailure.TaskHandle.State.FAILED, handle.state()),
-          () -> assertThrows(IllegalStateException.class, handle::get)
-      );
+      assertThrows(IllegalStateException.class, supplier::get);
     }
   }
 
   @Test
-  public void oneTaskInterrupted() throws InterruptedException {
+  public void oneTaskInterrupted() {
     try(var scope = new StructuredScopeShutdownOnFailure<RuntimeException>()) {
-      var handle = scope.fork(() -> {
+      var supplier = scope.fork(() -> {
         Thread.sleep(100);
         throw new InterruptedException();
       });
       try {
         scope.joinAll();
         fail();
-      } catch(CancelledException e) {
+      } catch(InterruptedException e) {
         // ok
       }
 
-      assertAll(
-          () -> assertEquals(StructuredScopeShutdownOnFailure.TaskHandle.State.CANCELLED, handle.state()),
-          () -> assertThrows(IllegalStateException.class, handle::get)
-      );
+      assertThrows(IllegalStateException.class, supplier::get);
     }
   }
 
@@ -74,21 +65,19 @@ public class StructuredScopeShutdownOnFailureTest {
   @Test
   public void manyTasksSuccess() throws InterruptedException{
     try(var scope = new StructuredScopeShutdownOnFailure<RuntimeException>()) {
-      var handle = scope.fork(() -> {
+      var supplier1 = scope.fork(() -> {
         Thread.sleep(300);
         return 30;
       });
-      var handle2 = scope.fork(() -> {
+      var supplier2 = scope.fork(() -> {
         Thread.sleep(100);
         return 10;
       });
       scope.joinAll();
-      int value = handle.get();
-      int value2 = handle2.get();
+      int value = supplier1.get();
+      int value2 = supplier2.get();
       assertAll(
-          () -> assertEquals(StructuredScopeShutdownOnFailure.TaskHandle.State.SUCCESS, handle.state()),
           () -> assertEquals(30, value),
-          () -> assertEquals(StructuredScopeShutdownOnFailure.TaskHandle.State.SUCCESS, handle2.state()),
           () -> assertEquals(10, value2)
       );
     }
@@ -97,11 +86,11 @@ public class StructuredScopeShutdownOnFailureTest {
   @Test
   public void manyTasksFailure() throws InterruptedException {
     try(var scope = new StructuredScopeShutdownOnFailure<IOException>()) {
-      var handle = scope.fork(() -> {
+      var supplier = scope.fork(() -> {
         Thread.sleep(100);
         throw new IOException("boom");
       });
-      var handle2 = scope.fork(() -> {
+      var supplier2 = scope.fork(() -> {
         Thread.sleep(300);
         throw new IOException("boom2");
       });
@@ -112,10 +101,8 @@ public class StructuredScopeShutdownOnFailureTest {
         assertEquals("boom", e.getMessage());
       }
       assertAll(
-          () -> assertEquals(StructuredScopeShutdownOnFailure.TaskHandle.State.FAILED, handle.state()),
-          () -> assertThrows(IllegalStateException.class, handle::get),
-          () -> assertEquals(StructuredScopeShutdownOnFailure.TaskHandle.State.CANCELLED, handle2.state()),
-          () -> assertThrows(IllegalStateException.class, handle2::get)
+          () -> assertThrows(IllegalStateException.class, supplier::get),
+          () -> assertThrows(IllegalStateException.class, supplier2::get)
       );
     }
   }
@@ -123,11 +110,11 @@ public class StructuredScopeShutdownOnFailureTest {
   @Test
   public void manyTasksMixedSuccessFailure() throws InterruptedException {
     try(var scope = new StructuredScopeShutdownOnFailure<IOException>()) {
-      var handle = scope.fork(() -> {
+      var supplier = scope.fork(() -> {
         Thread.sleep(300);
         throw new IOException("boom");
       });
-      var handle2 = scope.fork(() -> {
+      var supplier2 = scope.fork(() -> {
         Thread.sleep(100);
         return 42;
       });
@@ -138,10 +125,8 @@ public class StructuredScopeShutdownOnFailureTest {
         assertEquals("boom", e.getMessage());
       }
       assertAll(
-          () -> assertEquals(StructuredScopeShutdownOnFailure.TaskHandle.State.FAILED, handle.state()),
-          () -> assertThrows(IllegalStateException.class, handle::get),
-          () -> assertEquals(StructuredScopeShutdownOnFailure.TaskHandle.State.SUCCESS, handle2.state()),
-          () -> assertEquals(42, handle2.get())
+          () -> assertThrows(IllegalStateException.class, supplier::get),
+          () -> assertEquals(42, supplier2.get())
       );
     }
   }

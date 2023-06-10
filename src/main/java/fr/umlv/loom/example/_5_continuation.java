@@ -3,7 +3,7 @@ package fr.umlv.loom.example;
 import jdk.internal.vm.Continuation;
 import jdk.internal.vm.ContinuationScope;
 
-// $JAVA_HOME/bin/java --enable-preview --add-exports java.base/jdk.internal.vm=ALL-UNNAMED -cp target/loom-1.0-SNAPSHOT.jar  fr.umlv.loom.example._5_continuation
+// $JAVA_HOME/bin/java --add-exports java.base/jdk.internal.vm=ALL-UNNAMED -cp target/classes  fr.umlv.loom.example._5_continuation
 public interface _5_continuation {
   static void main(String[] args)  {
     var scope = new ContinuationScope("hello");

@@ -44,7 +44,6 @@
                     <target>21</target>
                     <compilerArgs>
                         <arg>--enable-preview</arg>
-                        <arg>--add-modules=jdk.incubator.concurrent</arg>
                         <arg>--add-exports</arg>
                         <arg>java.base/jdk.internal.vm=ALL-UNNAMED</arg>
                     </compilerArgs>
@@ -55,7 +54,7 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.0.0</version>
                 <configuration>
-                    <argLine>--enable-preview --add-modules jdk.incubator.concurrent</argLine>
+                    <argLine>--enable-preview</argLine>
                 </configuration>
             </plugin>
         </plugins>

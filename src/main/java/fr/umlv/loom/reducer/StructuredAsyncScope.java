@@ -1,7 +1,6 @@
 package fr.umlv.loom.reducer;
 
 import fr.umlv.loom.reducer.StructuredAsyncScope.Result.State;
-import jdk.incubator.concurrent.StructuredTaskScope;
 
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
@@ -9,7 +8,7 @@ import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.Future;
+import java.util.concurrent.StructuredTaskScope;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
 
@@ -158,19 +157,12 @@ public final class StructuredAsyncScope<T, A, V> extends StructuredTaskScope<T> 
   }
 
   @Override
-  protected void handleComplete(Future<T> future) {
-    Result<T> result;
-    switch (future.state()) {
-      case CANCELLED -> {
-        // automatic cancelling of the other tasks
-        // this is a no-op if the scope is already shutdown
-        shutdown();
-        return;
-      }
-      case SUCCESS -> result = new Result<>(State.SUCCEED, future.resultNow(), null);
-      case FAILED -> result = new Result<>(State.FAILED, null, future.exceptionNow());
-      default -> throw new AssertionError();
-    }
+  protected void handleComplete(Subtask<? extends T> subtask) {
+    Result<T> result = switch (subtask.state()) {
+      case UNAVAILABLE -> throw new AssertionError();
+      case SUCCESS -> result = new Result<T>(State.SUCCEED, subtask.get(), null);
+      case FAILED -> result = new Result<T>(State.FAILED, null, subtask.exception());
+    };
     var shouldShutdown = new Runnable() {
       private boolean shutdown;
       @Override

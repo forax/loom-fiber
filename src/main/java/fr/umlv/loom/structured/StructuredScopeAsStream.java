@@ -1,13 +1,11 @@
 package fr.umlv.loom.structured;
 
-import jdk.incubator.concurrent.StructuredTaskScope;
-
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
 import java.util.Objects;
 import java.util.Spliterator;
-import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.StructuredTaskScope;
 import java.util.function.BinaryOperator;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -23,9 +21,9 @@ public final class StructuredScopeAsStream<T, E extends Exception> implements Au
    * @param <T> type of the result of the computation
    * @param <E> type of the exception thrown by the computation
    */
-  public interface TaskHandle<T, E extends Exception> {
+  public interface Subtask<T, E extends Exception> {
     enum State {
-      RUNNING, SUCCESS, FAILED, CANCELLED
+      SUCCESS, FAILED, UNAVAILABLE
     }
 
     /**
@@ -38,10 +36,9 @@ public final class StructuredScopeAsStream<T, E extends Exception> implements Au
      * Returns the value of the computation
      * @return the value of the computation
      * @throws E the exception thrown by the computation
-     * @throws CancelledException if the task was cancelled.
      * @throws IllegalStateException if the computation is not done.
      */
-    T get() throws E, CancelledException;
+    T get() throws E;
   }
 
   /**
@@ -109,10 +106,18 @@ public final class StructuredScopeAsStream<T, E extends Exception> implements Au
      * @return the value of the computation
      * @throws E the exception thrown by the computation
      */
-    public T getNow() throws E {
+    public T get() throws E {
       return switch (state) {
         case SUCCESS -> result;
         case FAILED -> throw failure;
+      };
+    }
+
+    @Override
+    public String toString() {
+      return switch (state) {
+        case SUCCESS -> "Success(" + result + ")";
+        case FAILED -> "Failed(" + failure + ")";
       };
     }
 
@@ -249,13 +254,13 @@ public final class StructuredScopeAsStream<T, E extends Exception> implements Au
 
   private final Thread ownerThread;
   private final StructuredTaskScope<T> taskScope;
-  private final LinkedBlockingQueue<Future<T>> futures = new LinkedBlockingQueue<>();
-  private volatile long tasks;
+  private final LinkedBlockingQueue<Result<T,E>> tasks = new LinkedBlockingQueue<>();
+  private volatile long taskCount;
 
-  private static final VarHandle TASKS;
+  private static final VarHandle TASK_COUNT;
   static {
     try {
-      TASKS = MethodHandles.lookup().findVarHandle(StructuredScopeAsStream.class, "tasks", long.class);
+      TASK_COUNT = MethodHandles.lookup().findVarHandle(StructuredScopeAsStream.class, "taskCount", long.class);
     } catch (NoSuchFieldException | IllegalAccessException e) {
       throw new AssertionError(e);
     }
@@ -268,8 +273,11 @@ public final class StructuredScopeAsStream<T, E extends Exception> implements Au
     this.ownerThread = Thread.currentThread();
     this.taskScope = new StructuredTaskScope<>() {
       @Override
-      protected void handleComplete(Future<T> future) {
-        futures.add(future);
+      protected void handleComplete(Subtask<? extends T> subtask) {
+        var result = toResult(subtask);
+        if (result != null) {
+          tasks.add(result);
+        }
       }
     };
   }
@@ -290,37 +298,35 @@ public final class StructuredScopeAsStream<T, E extends Exception> implements Au
    * @param invokable the computation to run.
    * @return an asynchronous task, an object that represents the result of the computation in the future.
    *
-   * @see TaskHandle#get()
+   * @see Subtask#get()
    */
-  public TaskHandle<T, E> fork(Invokable<? extends T, ? extends E> invokable) {
-    var future = taskScope.<T>fork(invokable::invoke);
-    TASKS.getAndAdd(this, 1);
-    return new TaskHandle<>() {
+  public Subtask<T, E> fork(Invokable<? extends T, ? extends E> invokable) {
+    var subtask = taskScope.<T>fork(invokable::invoke);
+    TASK_COUNT.getAndAdd(this, 1);
+    return new Subtask<>() {
       @Override
       public State state() {
-        return switch (future.state()) {
-          case RUNNING -> State.RUNNING;
+        return switch (subtask.state()) {
           case SUCCESS -> State.SUCCESS;
           case FAILED -> {
-            if (future.exceptionNow() instanceof InterruptedException) {
-              yield State.CANCELLED;
+            if (subtask.exception() instanceof InterruptedException) {
+              yield State.UNAVAILABLE;
             }
             yield State.FAILED;
           }
-          case CANCELLED -> State.CANCELLED;
+          case UNAVAILABLE -> State.UNAVAILABLE;
         };
       }
 
       @Override
-      public T get() throws E, CancelledException {
-        return switch (future.state()) {
-          case RUNNING -> throw new IllegalStateException("Task is not completed");
-          case SUCCESS -> future.resultNow();
-          case CANCELLED -> throw new CancelledException();
+      public T get() throws E {
+        return switch (subtask.state()) {
+          case UNAVAILABLE -> throw new IllegalStateException("Task unavailable");
+          case SUCCESS -> subtask.get();
           case FAILED -> {
-            var throwable = future.exceptionNow();
+            var throwable = subtask.exception();
             if (throwable instanceof InterruptedException) {
-              throw new CancelledException();
+              throw new IllegalStateException("Task unavailable");
             }
             throw (E) throwable;
           }
@@ -329,12 +335,12 @@ public final class StructuredScopeAsStream<T, E extends Exception> implements Au
     };
   }
 
-  private Result<T, E> toResult(Future<T> future) {
-    return switch (future.state()) {
-      case RUNNING, CANCELLED -> throw new AssertionError();
-      case SUCCESS -> new Result<>(Result.State.SUCCESS, future.resultNow(), null);
+  private Result<T, E> toResult(StructuredTaskScope.Subtask<? extends T> subtask) {
+    return switch (subtask.state()) {
+      case UNAVAILABLE -> throw new AssertionError();
+      case SUCCESS -> new Result<>(Result.State.SUCCESS, subtask.get(), null);
       case FAILED -> {
-        var throwable = future.exceptionNow();
+        var throwable = subtask.exception();
         if (throwable instanceof InterruptedException) {
           yield null;
         }
@@ -360,22 +366,19 @@ public final class StructuredScopeAsStream<T, E extends Exception> implements Au
     @Override
     public boolean tryAdvance(Consumer<? super Result<T, E>> action) {
       checkThread();
-      if (index >= tasks) {  // volatile read
+      if (index >= taskCount) {  // volatile read
         index = Long.MAX_VALUE;
         return false;
       }
-      Future<T> future;
+      Result<T,E> result;
       try {
-        future = futures.take();
+        result = tasks.take();
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
         index = Long.MAX_VALUE;
         return false;
       }
-      var result = toResult(future);
-      if (result != null) {
-        action.accept(result);
-      }
+      action.accept(result);
       index++;
       return true;
     }
@@ -391,7 +394,7 @@ public final class StructuredScopeAsStream<T, E extends Exception> implements Au
       if (index == Long.MAX_VALUE) {
         return 0;
       }
-      return tasks - index;  // volatile read
+      return taskCount - index;  // volatile read
     }
 
     @Override

@@ -45,7 +45,7 @@ public class StructuredScopeShutdownOnSuccessTest {
       try {
         scope.joinAll();
         fail();
-      } catch(CancelledException e) {
+      } catch(InterruptedException e) {
         // ok
       }
     }

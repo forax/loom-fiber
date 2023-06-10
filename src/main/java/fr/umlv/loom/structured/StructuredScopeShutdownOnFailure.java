@@ -1,7 +1,7 @@
 package fr.umlv.loom.structured;
 
-import jdk.incubator.concurrent.StructuredTaskScope;
-
+import java.util.Objects;
+import java.util.concurrent.StructuredTaskScope;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -12,40 +12,11 @@ public class StructuredScopeShutdownOnFailure<E extends Exception> implements Au
     this.scope = new StructuredTaskScope.ShutdownOnFailure();
   }
 
-  public interface TaskHandle<T> extends Supplier<T> {
-    enum State { RUNNING, SUCCESS, FAILED, CANCELLED }
-
-    State state();
-
-    T get();
-  }
-
-  public <T> TaskHandle<T> fork(Invokable<? extends T, ? extends E> invokable) {
-    var future = scope.fork(invokable::invoke);
-    return new TaskHandle<T>() {
-      @Override
-      public State state() {
-        return switch (future.state()) {
-          case RUNNING -> State.RUNNING;
-          case SUCCESS -> State.SUCCESS;
-          case CANCELLED -> State.CANCELLED;
-          case FAILED -> {
-            var throwable = future.exceptionNow();
-            if (throwable instanceof InterruptedException) {
-              yield State.CANCELLED;
-            }
-            yield State.FAILED;
-          }
-        };
-      }
-
-      @Override
-      public T get() {
-        return switch (future.state()) {
-          case RUNNING, CANCELLED, FAILED -> throw new IllegalStateException();
-          case SUCCESS -> future.resultNow();
-        };
-      }
+  public <T> Supplier<T> fork(Invokable<? extends T, ? extends E> invokable) {
+    var subtask = scope.fork(invokable::invoke);
+    return () -> switch (subtask.state()) {
+      case UNAVAILABLE, FAILED -> throw new IllegalStateException();
+      case SUCCESS -> subtask.get();
     };
   }
 
@@ -54,6 +25,7 @@ public class StructuredScopeShutdownOnFailure<E extends Exception> implements Au
   }
 
   public <X extends Exception> void joinAll(Function<? super E, ? extends X> exceptionMapper) throws X, InterruptedException {
+    Objects.requireNonNull(exceptionMapper, "exceptionMapper is null");
     scope.join();
     scope.throwIfFailed(throwable -> {
       if (throwable instanceof RuntimeException e) {
@@ -62,8 +34,8 @@ public class StructuredScopeShutdownOnFailure<E extends Exception> implements Au
       if (throwable instanceof Error e) {
         throw e;
       }
-      if (throwable instanceof InterruptedException) {
-        throw new CancelledException();
+      if (throwable instanceof InterruptedException e) {
+        return (X) e;  // dubious cast
       }
       return exceptionMapper.apply((E) throwable);
     });

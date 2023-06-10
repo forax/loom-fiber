@@ -27,7 +27,7 @@ public class StructuredScopeAsStreamTest {
       scope.joinAll();
 
       assertAll(
-          () -> assertEquals(StructuredScopeAsStream.TaskHandle.State.SUCCESS, task.state()),
+          () -> assertEquals(StructuredScopeAsStream.Subtask.State.SUCCESS, task.state()),
           () -> assertEquals(10, task.get())
       );
     }
@@ -45,7 +45,7 @@ public class StructuredScopeAsStreamTest {
 
       assertAll(
           () -> assertThrows(IOException.class, task::get),
-          () -> assertEquals(StructuredScopeAsStream.TaskHandle.State.FAILED, task.state())
+          () -> assertEquals(StructuredScopeAsStream.Subtask.State.FAILED, task.state())
       );
     }
   }
@@ -192,7 +192,7 @@ public class StructuredScopeAsStreamTest {
       var results = scope.joinAll(Stream::toList);
       var sum = 0;
       for(var result: results) {
-        sum += result.getNow();
+        sum += result.get();
       }
       assertEquals(40, sum);
     }
@@ -231,7 +231,7 @@ public class StructuredScopeAsStreamTest {
       int value = scope.joinAll(stream -> stream.flatMap(Result::keepOnlySuccess).findFirst()).orElseThrow();
       assertEquals(10, value);
       assertEquals(10, task.get());
-      assertEquals(StructuredScopeAsStream.TaskHandle.State.CANCELLED, task2.state());
+      assertEquals(StructuredScopeAsStream.Subtask.State.UNAVAILABLE, task2.state());
     }
   }
 
@@ -250,7 +250,7 @@ public class StructuredScopeAsStreamTest {
       int value = scope.joinAll(stream -> stream.flatMap(Result::keepOnlySuccess).findFirst()).orElseThrow();
       assertEquals(10, value);
       assertEquals(10, task.get());
-      assertEquals(StructuredScopeAsStream.TaskHandle.State.CANCELLED, task2.state());
+      assertEquals(StructuredScopeAsStream.Subtask.State.UNAVAILABLE, task2.state());
     }
   }
 

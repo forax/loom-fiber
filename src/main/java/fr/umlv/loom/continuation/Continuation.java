@@ -1,7 +1,6 @@
 package fr.umlv.loom.continuation;
 
 import fr.umlv.loom.executor.UnsafeExecutors;
-import jdk.incubator.concurrent.ScopedValue;
 
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
@@ -31,7 +30,7 @@ public class Continuation {
         state = State.RUNNING;
         var executor = UnsafeExecutors.virtualThreadExecutor(Runnable::run);
         executor.execute(() -> {
-          ScopedValue.where(CONTINUATION_SCOPE_LOCAL, this, runnable);
+          ScopedValue.runWhere(CONTINUATION_SCOPE_LOCAL, this, runnable);
           state = State.TERMINATED;
         });
       }
