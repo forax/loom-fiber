@@ -18,7 +18,8 @@ public interface _24_as_stream_short_circuit {
         //throw new IOException();
         return 42;
       });
-      var optional = scope.joinAll(s -> s.flatMap(Result::keepOnlySuccess).findFirst());
+      var optional =
+          scope.joinAll(s -> s.flatMap(Result::keepOnlySuccess).findFirst());
       System.out.println(optional);
     }
   }

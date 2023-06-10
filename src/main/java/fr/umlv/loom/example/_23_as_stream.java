@@ -10,19 +10,19 @@ import java.util.stream.Collectors;
 public interface _23_as_stream {
   static void main(String[] args) throws /*IOException,*/ InterruptedException {
     try (var scope = new StructuredScopeAsStream<Integer, IOException>()) {
-      var task1 = scope.fork(() -> {
+      scope.fork(() -> {
         Thread.sleep(1_000);
         return 1;
       });
-      var task2 = scope.fork(() -> {
+      scope.fork(() -> {
         Thread.sleep(42);
         throw new IOException();
         //return 2;
       });
-      var list = scope.joinAll(stream -> stream.toList());
-      System.out.println(list);
+      //var list = scope.joinAll(stream -> stream.toList());
+      //System.out.println(list);
 
-      //var result = scope.joinAll(s -> s.collect(Result.toResult(Collectors.summingInt(v -> v))));
+      var result = scope.joinAll(s -> s.collect(Result.toResult(Collectors.summingInt(v -> v))));
       //System.out.println(result.get());
     }
   }

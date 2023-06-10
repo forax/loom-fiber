@@ -1,5 +1,6 @@
 package fr.umlv.loom.example;
 
+import java.io.IOException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.StructuredTaskScope;
 
@@ -11,9 +12,9 @@ public interface _12_shutdown_on_failure {
         Thread.sleep(1_000);
         return 1;
       });
-      var task2 = scope.fork(() -> {
+      var task2 = scope.<String>fork(() -> {
         Thread.sleep(42);
-        return 2;
+        return "2";
       });
       scope.join().throwIfFailed();
       System.out.println(task1.get() + task2.get());
